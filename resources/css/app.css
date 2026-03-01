@@ -1,0 +1,290 @@
+@import 'tailwindcss';
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* =============================================
+   shadcn-vue semantic tokens (neutral + emerald)
+   ============================================= */
+@theme inline {
+    --radius: 0.625rem;
+    --color-background: #ffffff;
+    --color-foreground: #0a0a0a;
+    --color-card: #ffffff;
+    --color-card-foreground: #0a0a0a;
+    --color-popover: #ffffff;
+    --color-popover-foreground: #0a0a0a;
+    --color-primary: #047857;
+    --color-primary-foreground: #ffffff;
+    --color-secondary: #f5f5f5;
+    --color-secondary-foreground: #171717;
+    --color-muted: #f5f5f5;
+    --color-muted-foreground: #737373;
+    --color-accent: #f5f5f5;
+    --color-accent-foreground: #171717;
+    --color-destructive: #ef4444;
+    --color-destructive-foreground: #fafafa;
+    --color-border: #e5e5e5;
+    --color-input: #e5e5e5;
+    --color-ring: #047857;
+    --color-sidebar-background: #0f2a26;
+    --color-sidebar-foreground: #f5f5f4;
+    --color-sidebar-primary: #047857;
+    --color-sidebar-primary-foreground: #f5f5f4;
+    --color-sidebar-accent: #1a4a42;
+    --color-sidebar-accent-foreground: #f5f5f4;
+    --color-sidebar-border: #1a4a42;
+    --color-sidebar-ring: #047857;
+}
+
+/* Dark mode overrides */
+.dark {
+    --color-background: #0a0a0a;
+    --color-foreground: #fafafa;
+    --color-card: #0a0a0a;
+    --color-card-foreground: #fafafa;
+    --color-popover: #0a0a0a;
+    --color-popover-foreground: #fafafa;
+    --color-primary: #059669;
+    --color-primary-foreground: #ffffff;
+    --color-secondary: #262626;
+    --color-secondary-foreground: #fafafa;
+    --color-muted: #262626;
+    --color-muted-foreground: #a3a3a3;
+    --color-accent: #262626;
+    --color-accent-foreground: #fafafa;
+    --color-destructive: #dc2626;
+    --color-destructive-foreground: #fafafa;
+    --color-border: #262626;
+    --color-input: #262626;
+    --color-ring: #059669;
+    --color-sidebar-background: #0a0f0e;
+    --color-sidebar-foreground: #f5f5f4;
+    --color-sidebar-primary: #059669;
+    --color-sidebar-primary-foreground: #f5f5f4;
+    --color-sidebar-accent: #162b27;
+    --color-sidebar-accent-foreground: #f5f5f4;
+    --color-sidebar-border: #162b27;
+    --color-sidebar-ring: #059669;
+}
+
+/* =============================================
+   Custom brand tokens (non-conflicting)
+   ============================================= */
+@theme {
+    --breakpoint-lg: 992px;
+
+    /* Emerald brand shades */
+    --color-primary-dark: #1a4a42;
+    --color-primary-darker: #163d37;
+    --color-sidebar: #0f2a26;
+    --color-primary-light: #d1fae5;
+    --color-primary-lighter: #ecfdf5;
+
+    /* Status colours */
+    --color-success: #059669;
+    --color-success-light: #d1fae5;
+    --color-danger: #dc2626;
+    --color-danger-light: #fee2e2;
+    --color-warning: #f59e0b;
+    --color-warning-dark: #d97706;
+    --color-warning-light: #fef3c7;
+    --color-info: #0891b2;
+    --color-info-light: #cffafe;
+
+    /* Surfaces & text */
+    --color-surface: #f9fafb;
+    --color-surface-alt: #f3f4f6;
+    --color-text: #111827;
+    --color-text-muted: #6b7280;
+    --color-text-light: #9ca3af;
+}
+
+/*
+  The default border color has changed to `currentcolor` in Tailwind CSS v4,
+  so we've added these compatibility styles to make sure everything still
+  looks the same as it did with Tailwind CSS v3.
+
+  If we ever want to remove these styles, we need to add an explicit border
+  color utility to any element that depends on these defaults.
+*/
+@layer base {
+
+    *,
+    ::after,
+    ::before,
+    ::backdrop,
+    ::file-selector-button {
+        border-color: var(--color-gray-200, currentcolor);
+    }
+}
+
+@layer components {
+    .btn {
+        @apply inline-flex h-10 min-h-10 items-center justify-center gap-2 rounded-md border border-transparent bg-surface px-3 py-2 text-sm font-semibold text-gray-800 shadow-sm transition-colors duration-150 focus:ring-2 focus:ring-primary/30 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50;
+    }
+
+    .btn-sm {
+        @apply h-9 min-h-9 px-3 text-sm;
+    }
+
+    .btn-circle {
+        @apply aspect-square rounded-full px-0;
+    }
+
+    .menu {
+        @apply flex flex-col gap-1;
+    }
+
+    .modal {
+        @apply fixed inset-0 z-[999] hidden items-center justify-center bg-black/50 p-4 backdrop-blur-sm;
+    }
+
+    .modal[open],
+    .modal.modal-open {
+        @apply flex;
+    }
+
+    .modal-box {
+        @apply relative w-full max-w-xl rounded-lg bg-white p-6 shadow-xl;
+    }
+
+    .modal-action {
+        @apply mt-6 flex justify-end gap-3;
+    }
+
+    .modal-backdrop {
+        @apply fixed inset-0 bg-transparent;
+    }
+}
+
+@utility menu-btn {
+    @apply flex size-12 items-center justify-center rounded-2xl bg-white/5 text-white/90 transition-colors duration-300 hover:bg-amber-500/50 hover:text-white;
+}
+
+@utility active-menu-btn {
+    @apply size-12 bg-amber-500/50 text-white shadow-sm;
+}
+
+@utility active-group {
+    @apply rounded-md bg-amber-500/10 dark:bg-amber-500;
+}
+
+@utility sub-menu {
+    @apply hidden space-y-1;
+}
+
+@utility menu-label {
+    @apply mt-1 text-center text-[10px] leading-tight font-medium text-white/70 uppercase;
+}
+
+@utility active-menu {
+    @apply flex;
+}
+
+@utility menu-link {
+    @apply focus-within:ring-3 focus-within:ring-amber-500/40 focus-within:outline-hidden hover:bg-amber-500/40 hover:text-amber-500 hover:no-underline focus:bg-amber-500/40 focus:text-amber-500 focus:ring-3 focus:ring-amber-500/40 focus:outline-hidden active:text-amber-500;
+}
+
+@utility active-link {
+    @apply bg-amber-500/30 text-white;
+}
+
+@utility menu-icon {
+    @apply flex w-full flex-col items-center justify-center gap-0.5 py-2;
+}
+
+@utility dash-ring {
+    @apply focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-slate-500 focus-within:outline-dashed hover:outline-2 hover:outline-offset-2 hover:outline-slate-500 hover:outline-dashed;
+}
+
+@utility dash-ring-sm {
+    @apply focus-within:outline-1 focus-within:outline-offset-1 focus-within:outline-slate-500 focus-within:outline-dashed hover:outline-1 hover:outline-offset-1 hover:outline-slate-500 hover:outline-dashed;
+}
+
+@utility btn-create {
+    @apply inline-flex h-11 min-h-10 w-fit items-center justify-start gap-x-2 rounded-md border-2 border-primary bg-primary-dark px-2 pr-5 pl-2 text-base text-white shadow-sm transition-colors duration-150 hover:border-primary hover:bg-primary hover:text-white focus:ring-2 focus:ring-primary/30 focus:outline-none;
+}
+
+@utility table {
+    & :where(th, td) {
+        @apply p-0;
+    }
+}
+
+@utility input-sm {
+    @apply h-7;
+}
+
+@utility inv-thead {
+    /* invoice table */
+    @apply top-0 flex items-center justify-center bg-gray-800 text-white;
+}
+
+@utility inv-tbody {
+    @apply flex items-center justify-center bg-gray-50;
+}
+
+@utility inv-tfoot-sum-type {
+    @apply col-span-2 flex h-8 items-center justify-end bg-gray-200 pr-3 font-bold;
+}
+
+@utility inv-tfoot-sum-amount {
+    @apply h-8 border-b-2 border-gray-600 font-bold;
+}
+
+@layer utilities {
+
+    /* width */
+    ::-webkit-scrollbar {
+        width: 10px;
+        height: 10px;
+    }
+
+    /* Track */
+    ::-webkit-scrollbar-track {
+        border-radius: 10px;
+        background: #edf2f7;
+    }
+
+    /* Handle */
+    ::-webkit-scrollbar-thumb {
+        background: #454545;
+        border-radius: 0px;
+    }
+
+    /* Handle on hover */
+    ::-webkit-scrollbar-thumb:hover {
+        background: #a0aec0;
+    }
+
+    input[type='number']::-webkit-inner-spin-button,
+    input[type='number']::-webkit-outer-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+    }
+}
+
+/* Global */
+body {
+    font-family: 'Figtree', sans-serif;
+}
+
+a {
+    @apply hover:text-current hover:no-underline focus:no-underline;
+}
+
+input[type='radio']:checked+span {
+    @apply block;
+}
+
+.label-toggle {
+    @apply hidden;
+}
+
+a {
+    @apply hover:text-current hover:no-underline focus:no-underline;
+}
+
+input[type='radio']:checked+span {
+    @apply block;
+}

@@ -15,6 +15,7 @@ class DeviceConfig extends Model
         'name',
         'ip_address',
         'port',
+        'protocol',
         'is_active',
         'last_connected_at',
         'last_poll_at',
@@ -30,11 +31,20 @@ class DeviceConfig extends Model
     {
         return [
             'port' => 'integer',
+            'protocol' => 'string',
             'is_active' => 'boolean',
             'last_connected_at' => 'datetime',
             'last_poll_at' => 'datetime',
             'connection_failures' => 'integer',
         ];
+    }
+
+    /**
+     * Check if the device uses TCP protocol.
+     */
+    public function isTcp(): bool
+    {
+        return ($this->protocol ?? 'tcp') === 'tcp';
     }
 
     // ==========================================

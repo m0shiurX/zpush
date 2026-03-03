@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Models\DeviceConfig;
+use App\Services\ZktecoTcp;
 use Illuminate\Console\Command;
 use MehediJaman\LaravelZkteco\LaravelZkteco;
 use MehediJaman\LaravelZkteco\Lib\Util;
@@ -13,6 +14,7 @@ class TestDeviceConnection extends Command
         {--device= : Device ID from device_configs}
         {--ip= : Direct IP to test}
         {--port=4370 : Port to test}
+        {--protocol=tcp : Protocol to use (tcp or udp)}
         {--timeout=5 : Receive timeout in seconds}
         {--debug : Print raw protocol diagnostics}';
 
@@ -32,20 +34,15 @@ class TestDeviceConnection extends Command
             return self::FAILURE;
         }
 
-        ['name' => $name, 'ip' => $ip, 'port' => $port] = $resolved;
+        ['name' => $name, 'ip' => $ip, 'port' => $port, 'protocol' => $protocol] = $resolved;
         $timeout = max(1, (int) $this->option('timeout'));
 
-        $this->info("Testing device [{$name}] at {$ip}:{$port} (timeout {$timeout}s)...");
+        $this->info("Testing device [{$name}] at {$ip}:{$port} via {$protocol} (timeout {$timeout}s)...");
 
         $start = microtime(true);
 
         try {
-            $zk = new LaravelZkteco($ip, $port);
-
-            socket_set_option($zk->_zkclient, SOL_SOCKET, SO_RCVTIMEO, [
-                'sec' => $timeout,
-                'usec' => 0,
-            ]);
+            $zk = $this->createZkInstance($ip, $port, $protocol, $timeout);
 
             $connected = $zk->connect();
             $elapsed = round(microtime(true) - $start, 2);
@@ -95,7 +92,7 @@ class TestDeviceConnection extends Command
     }
 
     /**
-     * @return array{name: string, ip: string, port: int}|null
+     * @return array{name: string, ip: string, port: int, protocol: string}|null
      */
     private function resolveTarget(): ?array
     {
@@ -121,6 +118,7 @@ class TestDeviceConnection extends Command
                 'name' => $device->name,
                 'ip' => $device->ip_address,
                 'port' => (int) $device->port,
+                'protocol' => $device->protocol ?? 'tcp',
             ];
         }
 
@@ -134,6 +132,7 @@ class TestDeviceConnection extends Command
             'name' => 'Direct IP',
             'ip' => trim($ip),
             'port' => (int) $this->option('port'),
+            'protocol' => (string) $this->option('protocol'),
         ];
     }
 
@@ -181,5 +180,24 @@ class TestDeviceConnection extends Command
         $this->line(" - Raw reply length: {$rawLength} bytes");
         $this->line(" - Raw reply hex (first {$previewLength} bytes): {$hexPreview}");
         $this->line(" - Socket last error: {$socketErrorCode} ({$socketErrorText})");
+    }
+
+    /**
+     * Create the appropriate ZKTeco instance based on protocol.
+     */
+    private function createZkInstance(string $ip, int $port, string $protocol, int $timeout): LaravelZkteco
+    {
+        if ($protocol === 'tcp') {
+            return new ZktecoTcp($ip, $port, $timeout);
+        }
+
+        $zk = new LaravelZkteco($ip, $port);
+
+        socket_set_option($zk->_zkclient, SOL_SOCKET, SO_RCVTIMEO, [
+            'sec' => $timeout,
+            'usec' => 0,
+        ]);
+
+        return $zk;
     }
 }

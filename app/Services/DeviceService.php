@@ -26,7 +26,7 @@ class DeviceService
     public function connect(DeviceConfig $device): self
     {
         $this->device = $device;
-        $this->zk = new LaravelZkteco($device->ip_address, $device->port);
+        $this->zk = $this->createZkInstance($device);
 
         try {
             $connected = $this->zk->connect();
@@ -186,7 +186,7 @@ class DeviceService
 
         $device->update(['last_poll_at' => now()]);
 
-        Log::info("Polled device [{$device->name}]: {$newCount} new, {$duplicateCount} duplicates out of ".count($rawLogs).' total.');
+        Log::info("Polled device [{$device->name}]: {$newCount} new, {$duplicateCount} duplicates out of " . count($rawLogs) . ' total.');
 
         return [
             'total' => count($rawLogs),
@@ -274,5 +274,17 @@ class DeviceService
 
         $this->disconnect();
         $this->connect($device);
+    }
+
+    /**
+     * Create the appropriate ZKTeco instance based on device protocol.
+     */
+    private function createZkInstance(DeviceConfig $device): LaravelZkteco
+    {
+        if ($device->isTcp()) {
+            return new ZktecoTcp($device->ip_address, $device->port);
+        }
+
+        return new LaravelZkteco($device->ip_address, $device->port);
     }
 }

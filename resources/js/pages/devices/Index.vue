@@ -60,7 +60,7 @@ async function handlePoll(deviceId: number) {
         if (data.success) {
             testResult.value[deviceId] = {
                 success: true,
-                message: `Polled: ${data.new} new, ${data.duplicates} duplicates, ${data.users_synced} users synced`,
+                message: `Synced: ${data.new} new, ${data.duplicates} duplicates, ${data.users_synced} users synced`,
             };
             router.reload({ only: ['devices'] });
         } else {
@@ -123,7 +123,7 @@ function timeAgo(iso: string | null): string {
                         <div class="space-y-3">
                             <div class="grid grid-cols-2 gap-2 text-sm">
                                 <div>
-                                    <span class="text-muted-foreground">Last Poll</span>
+                                    <span class="text-muted-foreground">Last Sync</span>
                                     <p class="font-medium">{{ timeAgo(device.last_poll_at) }}</p>
                                 </div>
                                 <div>
@@ -147,7 +147,7 @@ function timeAgo(iso: string | null): string {
                                 </Button>
                                 <Button size="sm" :disabled="pollingDevice === device.id"
                                     @click="handlePoll(device.id)">
-                                    {{ pollingDevice === device.id ? 'Polling...' : 'Poll Now' }}
+                                    {{ pollingDevice === device.id ? 'Syncing...' : 'Sync Now' }}
                                 </Button>
                             </div>
                         </div>

@@ -158,6 +158,97 @@ test('pollAttendance returns zeros when no logs on device', function () {
     expect($result)->toBe(['total' => 0, 'new' => 0, 'duplicates' => 0]);
 });
 
+test('handleRealtimeEvent stores attendance for known employee', function () {
+    $employee = Employee::factory()->create(['device_uid' => 6]);
+
+    $service = new DeviceService;
+
+    $result = $service->handleRealtimeEvent([
+        'user_id' => '6',
+        'record_time' => '2025-03-01 09:00:00',
+        'state' => 0,
+        'device_ip' => '192.168.1.201',
+    ], $this->device);
+
+    expect($result)->toBe(['new' => 1, 'skipped' => 0])
+        ->and(AttendanceLog::count())->toBe(1);
+
+    $log = AttendanceLog::first();
+    expect($log->employee_id)->toBe($employee->id)
+        ->and($log->device_uid)->toBe(6)
+        ->and($log->device_id)->toBe($this->device->id)
+        ->and($log->timestamp->format('Y-m-d H:i:s'))->toBe('2025-03-01 09:00:00');
+});
+
+test('handleRealtimeEvent skips unknown user ids', function () {
+    Employee::factory()->create(['device_uid' => 6]);
+
+    $service = new DeviceService;
+
+    $result = $service->handleRealtimeEvent([
+        'user_id' => '999',
+        'record_time' => '2025-03-01 09:00:00',
+        'state' => 0,
+        'device_ip' => '192.168.1.201',
+    ], $this->device);
+
+    expect($result)->toBe(['new' => 0, 'skipped' => 1])
+        ->and(AttendanceLog::count())->toBe(0);
+});
+
+test('handleRealtimeEvent skips duplicate events', function () {
+    $employee = Employee::factory()->create(['device_uid' => 6]);
+
+    AttendanceLog::factory()->create([
+        'employee_id' => $employee->id,
+        'device_id' => $this->device->id,
+        'device_uid' => 6,
+        'timestamp' => '2025-03-01 09:00:00',
+    ]);
+
+    $service = new DeviceService;
+
+    $result = $service->handleRealtimeEvent([
+        'user_id' => '6',
+        'record_time' => '2025-03-01 09:00:00',
+        'state' => 0,
+        'device_ip' => '192.168.1.201',
+    ], $this->device);
+
+    expect($result)->toBe(['new' => 0, 'skipped' => 1])
+        ->and(AttendanceLog::count())->toBe(1);
+});
+
+test('handleRealtimeEvent maps punch type from state', function () {
+    Employee::factory()->create(['device_uid' => 6]);
+
+    $service = new DeviceService;
+
+    $service->handleRealtimeEvent([
+        'user_id' => '6',
+        'record_time' => '2025-03-01 18:00:00',
+        'state' => 1,
+        'device_ip' => '192.168.1.201',
+    ], $this->device);
+
+    expect(AttendanceLog::first()->punch_type)->toBe(\App\Enums\PunchType::CheckOut);
+});
+
+test('listenForAttendance registers for real-time events', function () {
+    $mockZk = Mockery::mock(ZKTeco::class);
+    $mockZk->shouldReceive('getRealTimeLogs')
+        ->once()
+        ->withArgs(function ($callback, $timeout) {
+            return is_callable($callback) && $timeout === 30;
+        })
+        ->andReturn(true);
+
+    $service = new DeviceService;
+    injectZkMock($service, $this->device, $mockZk);
+
+    $service->listenForAttendance($this->device, 30);
+});
+
 // ==========================================
 // Test Helpers
 // ==========================================

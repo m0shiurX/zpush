@@ -75,7 +75,7 @@ async function handlePoll() {
         const { data } = await axios.post(poll.url({ device: props.device.id }));
         resultSuccess.value = data.success;
         resultMessage.value = data.success
-            ? `Polled: ${data.new} new, ${data.duplicates} duplicates, ${data.users_synced} users synced`
+            ? `Synced: ${data.new} new, ${data.duplicates} duplicates, ${data.users_synced} users synced`
             : `Error: ${data.error}`;
         if (data.success) {
             router.reload({ only: ['recentLogs', 'device'] });
@@ -204,7 +204,7 @@ function timeAgo(iso: string | null): string {
                             <span class="font-medium">{{ timeAgo(device.last_connected_at) }}</span>
                         </div>
                         <div>
-                            <span class="text-muted-foreground block">Last Polled</span>
+                            <span class="text-muted-foreground block">Last Synced</span>
                             <span class="font-medium">{{ timeAgo(device.last_poll_at) }}</span>
                         </div>
                         <div>
@@ -230,7 +230,7 @@ function timeAgo(iso: string | null): string {
                             {{ testing ? 'Testing...' : 'Test Connection' }}
                         </Button>
                         <Button :disabled="polling" @click="handlePoll">
-                            {{ polling ? 'Polling...' : 'Poll Attendance' }}
+                            {{ polling ? 'Syncing...' : 'Sync Device' }}
                         </Button>
                         <Button variant="destructive" :disabled="clearingDevice" @click="showClearConfirm = 'device'">
                             <Trash2 class="mr-1 h-4 w-4" />

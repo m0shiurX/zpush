@@ -20,13 +20,14 @@ The application must work **fully offline** — collecting attendance and managi
 
 ### Core Objectives
 
-1. Connect to ZKTeco K40 device(s) via `mehedijaman/laravel-zkteco` package
+1. Connect to ZKTeco K40 device(s) via `0mithun/php-zkteco` package (native TCP support)
 2. Store data locally in SQLite for offline resilience and NativePHP compatibility
-3. **Process raw punch events into daily attendance records** (pair check-in/check-out locally)
-4. Sync processed daily attendance UP to lavloss when internet is available
-5. Sync employee data DOWN from lavloss (filtered by branch) to local + device
-6. First-run setup wizard — configure device, connect to cloud, **select branch**
-7. Fully functional without internet
+3. **Capture attendance via real-time event monitoring** — bypasses firmware bugs in bulk reads
+4. **Process raw punch events into daily attendance records** (pair check-in/check-out locally)
+5. Sync processed daily attendance UP to lavloss when internet is available
+6. Sync employee data DOWN from lavloss (filtered by branch) to local + device
+7. First-run setup wizard — configure device, connect to cloud, **select branch**
+8. Fully functional without internet
 
 ### Multi-Branch Architecture
 
@@ -80,7 +81,7 @@ The project is scaffolded from the Laravel 12 Vue starter kit. These are already
 | Styling         | **Tailwind CSS v4**               | Already installed via Vite plugin.                            |
 | UI Components   | **shadcn-vue (reka-ui)**          | Already installed. 24+ components available.                  |
 | Route Gen       | **Wayfinder**                     | Already installed. TypeScript route functions.                |
-| Device SDK      | `mehedijaman/laravel-zkteco`      | Installed (dev-main for L12). Wrapped by `ZktecoTcp` for TCP. |
+| Device SDK      | `0mithun/php-zkteco`              | Native TCP/UDP support. Real-time event monitoring for K40.   |
 | HTTP Client     | Laravel HTTP (Guzzle)             | Built-in. Cloud API communication.                            |
 | Queue           | SQLite-backed (`database` driver) | Already configured. Jobs persist across restarts.             |
 | Auth            | **Fortify + Spatie Permission**   | Already installed. NOT used for setup wizard.                 |
@@ -91,7 +92,7 @@ The project is scaffolded from the Laravel 12 Vue starter kit. These are already
 ### What to Install
 
 ```bash
-composer require mehedijaman/laravel-zkteco
+composer require 0mithun/php-zkteco
 ```
 
 That's it. Everything else is already in `composer.json` and `package.json`.
@@ -296,8 +297,7 @@ app/
 │   ├── StoreCloudServerRequest.php
 │   └── TestDeviceConnectionRequest.php
 ├── Services/
-│   ├── DeviceService.php             — ZKTeco device communication (TCP/UDP factory)
-│   ├── ZktecoTcp.php                 — TCP socket adapter for LaravelZkteco
+│   ├── DeviceService.php             — ZKTeco device communication (TCP/UDP, real-time events)
 │   ├── AttendanceProcessorService.php — Pairs raw punches → daily check-in/check-out
 │   ├── CloudApiService.php           — HTTP client for lavloss API
 │   ├── ConnectivityService.php       — Internet & cloud reachability checks
@@ -305,7 +305,7 @@ app/
 │   ├── AttendanceSyncService.php     — Local→Cloud processed attendance upload
 │   └── SyncOrchestrator.php          — Master sync logic
 ├── Jobs/
-│   ├── PollDeviceAttendance.php      — Fetch new punches from device
+│   ├── PollDeviceAttendance.php      — Fallback bulk fetch (some firmware may support it)
 │   ├── SyncAttendanceToCloud.php     — Push unsynced logs to cloud
 │   ├── SyncEmployeesFromCloud.php    — Pull employee changes from cloud
 │   ├── SyncEmployeesToDevice.php     — Push names/codes to device
@@ -331,7 +331,8 @@ app/
 │   ├── SyncCompleted.php
 │   └── SyncFailed.php
 └── Console/Commands/
-    ├── PollDevices.php               — `php artisan devices:poll` (manual trigger)
+    ├── ListenDevices.php             — `php artisan devices:listen` (real-time event daemon)
+    ├── PollDevices.php               — `php artisan devices:poll` (fallback manual trigger)
     ├── SyncToCloud.php               — `php artisan sync:cloud` (manual trigger)
     └── FlushSyncedLogs.php           — Housekeeping
 ```
@@ -416,51 +417,57 @@ class EnsureSetupComplete
 
 ## 7. DeviceService — ZKTeco Communication
 
-This is the core service. Wraps `mehedijaman/laravel-zkteco` with error handling and retry logic.
+This is the core service. Wraps `0mithun/php-zkteco` with error handling and retry logic.
 
-The upstream package hardcodes UDP sockets, but the K40 is TCP-only. `ZktecoTcp` extends `LaravelZkteco` with proper TCP framing (8-byte header: `\x50\x50\x82\x7d` + LE payload length). `DeviceService` uses a factory method to instantiate the correct adapter based on `DeviceConfig.protocol`.
+The package supports both TCP and UDP natively. `DeviceService` uses a factory method to instantiate the correct adapter based on `DeviceConfig.protocol`.
+
+### Attendance Collection: Real-Time Events vs Bulk Polling
+
+The K40's firmware (Ver 6.60 / JZ4725) has a known bug where `CMD_ATT_LOG_RRQ` (bulk read) returns corrupt memory dumps instead of formatted attendance records. To work around this, zpush uses **real-time event monitoring** (`CMD_REG_EVENT` / `EF_ATTLOG`) as the primary method.
+
+| Method             | Command          | Use Case                                     |
+| ------------------ | ---------------- | -------------------------------------------- |
+| Real-time listener | `devices:listen` | **Primary** — daemon captures events live    |
+| Bulk polling       | `devices:poll`   | **Fallback** — for firmware that supports it |
+
+The `devices:listen` command maintains a persistent TCP connection and receives attendance events instantly as employees punch. Run it under **Supervisor** in production for auto-restart.
 
 ```php
 class DeviceService
 {
     /**
-     * Test connection to a device. Returns device info on success.
-     *
-     * @return array{serial_number: string, device_name: string, user_count: int, log_count: int}
-     *
-     * @throws DeviceConnectionException
+     * Test connection. Returns device info on success.
      */
-    public function testConnection(string $ip, int $port = 4370): array;
+    public function testConnection(DeviceConfig $device): array;
 
     /**
-     * Fetch all attendance logs from device since last poll.
-     * Returns raw log data as array of arrays.
-     *
-     * @return array<int, array{uid: int, id: string, state: int, timestamp: string}>
+     * Listen for real-time attendance events (primary method).
+     * Runs as a blocking listener — captures events as they happen.
      */
-    public function getAttendanceLogs(DeviceConfig $device): array;
+    public function listenForAttendance(DeviceConfig $device, int $timeout = 0, ?callable $onEvent = null): void;
 
     /**
-     * Fetch all users registered on the device.
-     *
-     * @return array<int, array{uid: int, id: string, name: string, role: int, cardno: string}>
+     * Process a single real-time attendance event.
      */
-    public function getUsers(DeviceConfig $device): array;
+    public function handleRealtimeEvent(array $event, DeviceConfig $device): array;
 
     /**
-     * Add a user to the device.
+     * Fallback: bulk fetch attendance logs (broken on some K40 firmware).
      */
-    public function addUser(DeviceConfig $device, int $uid, string $userId, string $name): bool;
+    public function pollAttendance(DeviceConfig $device): array;
 
     /**
-     * Remove a user from the device.
+     * Sync users from device to local DB.
      */
-    public function removeUser(DeviceConfig $device, int $uid): bool;
+    public function syncUsersFromDevice(DeviceConfig $device): Collection;
 
     /**
-     * Clear all attendance logs from device (after confirmed sync).
+     * Add/remove users, clear attendance, get device info.
      */
-    public function clearAttendanceLogs(DeviceConfig $device): bool;
+    public function addUserToDevice(DeviceConfig $device, Employee $employee): bool;
+    public function removeUserFromDevice(DeviceConfig $device, int $uid): bool;
+    public function clearDeviceAttendance(DeviceConfig $device): bool;
+    public function getDeviceInfo(DeviceConfig $device): array;
 }
 ```
 
@@ -470,12 +477,12 @@ class DeviceService
 
 ### Connectivity States
 
-| Device       | Internet | Behavior                      |
-| ------------ | -------- | ----------------------------- |
-| Connected    | Online   | Full operation — poll + sync  |
-| Connected    | Offline  | Poll device, queue cloud sync |
-| Disconnected | Online   | Drain sync queue to cloud     |
-| Disconnected | Offline  | Show cached data, wait        |
+| Device       | Internet | Behavior                            |
+| ------------ | -------- | ----------------------------------- |
+| Connected    | Online   | Full operation — listen + sync      |
+| Connected    | Offline  | Listen for events, queue cloud sync |
+| Disconnected | Online   | Drain sync queue to cloud           |
+| Disconnected | Offline  | Show cached data, wait              |
 
 ### Sync Queue Pattern
 
@@ -524,6 +531,8 @@ php artisan queue:listen --tries=1 --timeout=0
 // routes/console.php
 use Illuminate\Support\Facades\Schedule;
 
+// Real-time listener: run `php artisan devices:listen` as a daemon (Supervisor)
+// Fallback polling (for devices where bulk read works):
 Schedule::job(new PollDeviceAttendance)->everyThirtySeconds();
 Schedule::job(new ProcessSyncQueue)->everyThirtySeconds();
 Schedule::job(new CheckCloudConnectivity)->everyMinute();
@@ -539,11 +548,11 @@ php artisan schedule:work
 
 ### Queue Priority
 
-| Queue     | Jobs                                | Purpose              |
-| --------- | ----------------------------------- | -------------------- |
-| `high`    | `PollDeviceAttendance`              | Must always run fast |
-| `default` | `ProcessSyncQueue`, cloud sync jobs | Normal priority      |
-| `low`     | `FlushSyncedLogs`, housekeeping     | Can wait             |
+| Queue     | Jobs                                | Purpose             |
+| --------- | ----------------------------------- | ------------------- |
+| `high`    | `PollDeviceAttendance`              | Fallback bulk fetch |
+| `default` | `ProcessSyncQueue`, cloud sync jobs | Normal priority     |
+| `low`     | `FlushSyncedLogs`, housekeeping     | Can wait            |
 
 ---
 
@@ -816,18 +825,19 @@ Use existing `AppLayout.vue` for all authenticated/main pages. Create `SetupLayo
 > Get the data layer and device communication working. Prove the ZKTeco connection.
 
 - [x] Enable SQLite WAL mode in `config/database.php`
-- [x] Install `mehedijaman/laravel-zkteco` package (dev-main for Laravel 12)
+- [x] Install `0mithun/php-zkteco` package (native TCP/UDP support)
 - [x] Create migrations: `device_configs`, `employees`, `attendance_logs`, `cloud_servers`, `sync_queue`, `sync_logs`, `app_settings`
 - [x] Create models with factories: `DeviceConfig`, `Employee`, `AttendanceLog`, `CloudServer`, `SyncQueue`, `SyncLog`, `AppSetting`
 - [x] Create enums: `PunchType`, `SyncDirection`, `SyncStatus`
-- [x] Build `DeviceService` — connect, test, fetch users, fetch attendance
-- [x] Build `ZktecoTcp` — TCP socket adapter (K40 is TCP-only, package defaults to UDP)
+- [x] Build `DeviceService` — connect, test, fetch users, real-time listener, fallback polling
+- [x] Real-time event monitoring via `CMD_REG_EVENT` / `EF_ATTLOG` (primary attendance method)
 - [x] Add `protocol` column to `device_configs` (default 'tcp')
-- [x] Create `PollDevices` artisan command for manual testing
+- [x] Create `ListenDevices` artisan command (`devices:listen` — real-time daemon)
+- [x] Create `PollDevices` artisan command (`devices:poll` — fallback bulk polling)
 - [x] Create `TestDeviceConnection` artisan command with `--debug` and `--protocol` options
 - [x] Write Pest tests for `DeviceService` against real device
 - [x] Run `vendor/bin/pint --dirty --format agent`
-- [x] Verified: 84 tests passing, real K40 connected via TCP (5 users, 48 attendance records pulled)
+- [x] Verified: 250 tests passing, real K40 connected via TCP, real-time events confirmed working
 
 ### Phase 2 — Setup Wizard + Core UI (3-4 days) ✅ COMPLETE
 
@@ -932,7 +942,7 @@ Use existing `AppLayout.vue` for all authenticated/main pages. Create `SetupLayo
 
 **SQLite Performance:** WAL mode + `busy_timeout` + proper indexes. Index: `attendance_logs(cloud_synced, created_at)`, `attendance_logs(device_uid, device_id, timestamp)`, `sync_queue(status, scheduled_at, priority)`, `employees(employee_code)`.
 
-**Device Limitations:** ZKTeco K40 supports ~1,000 users. `device_uid` is integer 1–65535. `DeviceService` must manage UID allocation when pushing new employees.
+**Device Limitations:** ZKTeco K40 firmware (Ver 6.60 / JZ4725) has a known bug where `CMD_ATT_LOG_RRQ` (bulk attendance read) returns corrupt memory dumps instead of formatted records. The `devices:listen` real-time event listener works around this. K40 supports ~1,000 users. `device_uid` is integer 1–65535. `DeviceService` must manage UID allocation when pushing new employees.
 
 **Timezone:** Store all timestamps in UTC. Device reports local time — normalize during polling. Display in user's configured timezone. Share timezone to Vue via Inertia for client-side formatting.
 
@@ -975,7 +985,7 @@ These existing files should NOT be touched during implementation:
 Before moving to Phase 6 (NativePHP), ALL of these must work:
 
 1. Fresh app → setup wizard completes → dashboard shows device status
-2. Device polling runs on schedule, attendance appears in UI within 30s
+2. `devices:listen` daemon captures real-time attendance events within seconds
 3. Employee list populated from device, shows sync status
 4. Attendance page with working date filters, search, pagination
 5. Cloud server can be added, tested, and syncs attendance in batches

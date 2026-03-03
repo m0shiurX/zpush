@@ -141,7 +141,7 @@ class DeviceService
             $synced->push($employee);
         }
 
-        Log::info("Matched {$synced->count()} employees on device [{$device->name}] (of " . count($rawUsers) . ' device users).');
+        Log::info("Matched {$synced->count()} employees on device [{$device->name}] (of ".count($rawUsers).' device users).');
 
         return $synced;
     }
@@ -212,13 +212,82 @@ class DeviceService
 
         $device->update(['last_poll_at' => now()]);
 
-        Log::info("Polled device [{$device->name}]: {$newCount} new, {$duplicateCount} duplicates out of " . count($rawLogs) . ' total.');
+        Log::info("Polled device [{$device->name}]: {$newCount} new, {$duplicateCount} duplicates out of ".count($rawLogs).' total.');
 
         return [
             'total' => count($rawLogs),
             'new' => $newCount,
             'duplicates' => $duplicateCount,
         ];
+    }
+
+    /**
+     * Listen for real-time attendance events from a device.
+     *
+     * Some ZKTeco firmware (e.g. K40 Ver 6.60 / JZ4725) returns corrupt data
+     * for bulk attendance reads (CMD_ATT_LOG_RRQ). Real-time event monitoring
+     * bypasses this by capturing punch events as they happen.
+     *
+     * @param  callable(array{new: int, skipped: int}): void  $onEvent  Optional callback after each event is processed.
+     *
+     * @throws DeviceConnectionException
+     */
+    public function listenForAttendance(DeviceConfig $device, int $timeout = 0, ?callable $onEvent = null): void
+    {
+        $this->ensureConnected($device);
+
+        $this->zk->getRealTimeLogs(function (array $event) use ($device, $onEvent) {
+            $result = $this->handleRealtimeEvent($event, $device);
+
+            if ($onEvent) {
+                $onEvent($result);
+            }
+        }, $timeout);
+    }
+
+    /**
+     * Process a single real-time attendance event from a device.
+     *
+     * @param  array{user_id: string, record_time: string, state: int, device_ip: string}  $event
+     * @return array{new: int, skipped: int}
+     */
+    public function handleRealtimeEvent(array $event, DeviceConfig $device): array
+    {
+        $deviceUid = (int) ($event['user_id'] ?? 0);
+
+        $employee = Employee::where('device_uid', $deviceUid)->first();
+
+        if (! $employee) {
+            Log::debug("Realtime event from unknown uid {$deviceUid} on [{$device->name}].");
+
+            return ['new' => 0, 'skipped' => 1];
+        }
+
+        $timestamp = Carbon::parse($event['record_time']);
+        $punchType = PunchType::tryFrom((int) ($event['state'] ?? 0)) ?? PunchType::CheckIn;
+
+        $existed = AttendanceLog::where('device_id', $device->id)
+            ->where('device_uid', $deviceUid)
+            ->where('timestamp', $timestamp)
+            ->exists();
+
+        if ($existed) {
+            return ['new' => 0, 'skipped' => 1];
+        }
+
+        AttendanceLog::create([
+            'employee_id' => $employee->id,
+            'device_id' => $device->id,
+            'device_uid' => $deviceUid,
+            'timestamp' => $timestamp,
+            'punch_type' => $punchType,
+        ]);
+
+        $device->update(['last_poll_at' => now()]);
+
+        Log::info("Realtime: {$employee->name} (uid {$deviceUid}) {$punchType->label()} at {$timestamp} on [{$device->name}].");
+
+        return ['new' => 1, 'skipped' => 0];
     }
 
     /**

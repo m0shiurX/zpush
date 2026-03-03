@@ -1,6 +1,6 @@
 # ZPush Usage Guide
 
-> **ZPush** is a middleware bridge between ZKTeco biometric attendance devices (LAN) and the **lavloss** cloud ERP. It runs at each physical branch, collects attendance data from devices, and syncs with the cloud.
+> **ZPush** is a middleware bridge between ZKTeco biometric attendance devices (LAN) and the **lavloss** cloud ERP. It runs at each physical branch, captures attendance data in real-time from devices, and syncs with the cloud.
 
 ---
 
@@ -40,9 +40,12 @@
 ```
 
 - Each **zpush instance** runs at a physical location (factory, office, branch)
-- It connects to local ZKTeco K40 devices on the LAN
+- It connects to local ZKTeco K40 devices on the LAN via a **real-time event listener** (`devices:listen` daemon)
+- When someone punches in/out, the device pushes an event instantly to zpush — no polling delay
 - It pushes processed attendance UP to lavloss and pulls employees DOWN
 - **Works fully offline** — cloud sync is an enhancement, not a requirement
+
+> **Why real-time?** ZKTeco K40 firmware (Ver 6.60 / JZ4725) has a known bug where bulk attendance reads (`CMD_ATT_LOG_RRQ`) return corrupt data. Real-time event monitoring (`CMD_REG_EVENT`) works perfectly and captures punches within seconds.
 
 ---
 
@@ -265,8 +268,11 @@ Click **Clear** to reset all filters.
 
 Go to **Settings** → **App Settings** to configure:
 
-### Device Polling
-- **Poll Interval** — How often zpush fetches new attendance from devices (default: 5 minutes)
+### Device Listener
+- **Attendance Collection** — zpush uses a real-time event listener (`php artisan devices:listen`) that captures attendance instantly when employees punch in/out on the device
+- **Fallback Polling** — A scheduled bulk poll (`devices:poll`) runs every 30 seconds as a fallback for devices whose firmware supports bulk reads. On K40 firmware 6.60, the listener is the only reliable method.
+
+> **Note:** The `devices:listen` command must run as a daemon (see [Running the Listener](#running-the-listener) below).
 
 ### Cloud Sync
 - **Auto Sync Enabled** — Toggle automatic cloud syncing on/off
@@ -277,6 +283,45 @@ Go to **Settings** → **App Settings** to configure:
 
 ### Data Retention
 - **Log Retention** — How long to keep sync logs (default: 90 days)
+
+### Running the Listener
+
+The `devices:listen` command is a long-running daemon that maintains an open connection to each ZKTeco device and captures punch events in real-time.
+
+```bash
+# Listen on all active devices (runs forever)
+php artisan devices:listen
+
+# Listen on a specific device only
+php artisan devices:listen --device=1
+
+# Listen with a timeout (seconds, 0 = forever)
+php artisan devices:listen --timeout=3600
+```
+
+#### Supervisor Configuration (Recommended)
+
+In production, use **Supervisor** to keep the listener running and auto-restart on failure:
+
+```ini
+[program:zpush-listener]
+process_name=%(program_name)s
+command=php /path/to/zpush/artisan devices:listen
+autostart=true
+autorestart=true
+user=www-data
+redirect_stderr=true
+stdout_logfile=/path/to/zpush/storage/logs/listener.log
+stopwaitsecs=10
+```
+
+Then:
+
+```bash
+sudo supervisorctl reread
+sudo supervisorctl update
+sudo supervisorctl start zpush-listener
+```
 
 ---
 
@@ -353,13 +398,13 @@ After revoking, zpush will show "Auth failed — check API key" and stop syncing
 
 zpush is designed to work **fully offline**:
 
-- **Device polling continues** — Attendance data is collected from the ZKTeco device even without internet
+- **Device listener continues** — The real-time listener captures attendance from the device even without internet
 - **Data stored in SQLite** — All attendance logs, employees, and queue items persist locally
 - **Queue system** — When internet returns, all pending sync items are automatically processed
 - **No data loss** — The queue holds items with retry logic and backoff delays
 
 ### What Works Offline
-- Device connection, testing, and polling
+- Device connection, testing, and real-time listening
 - Viewing attendance logs and employees
 - Exporting attendance to CSV
 - All local data management
@@ -391,14 +436,32 @@ zpush is designed to work **fully offline**:
 | Duplicate attendance       | zpush deduplicates by UNIQUE constraint — duplicates are silently skipped    |
 | Queue items failing        | Check error messages in Sync Monitor, look for specific employee/date issues |
 
+### Listener Issues
+
+| Problem                        | Solution                                                                            |
+| ------------------------------ | ----------------------------------------------------------------------------------- |
+| Listener stops unexpectedly    | Check Supervisor status: `sudo supervisorctl status zpush-listener`                 |
+| No events captured             | Verify device is reachable (`php artisan device:test`), check device is TCP-enabled |
+| Events captured but no records | Check employee exists with matching `device_uid` in zpush                           |
+| Duplicate events               | zpush deduplicates by employee + timestamp UNIQUE constraint — safe to ignore       |
+
 ### Running Diagnostics
 
 ```bash
 # Check device connection from terminal
 php artisan device:test --debug
 
+# Start the real-time listener (foreground, for debugging)
+php artisan devices:listen
+
+# Poll attendance manually (fallback, for devices that support bulk reads)
+php artisan devices:poll
+
 # View recent logs
 php artisan pail
+
+# Check Supervisor status
+sudo supervisorctl status zpush-listener
 
 # Check sync queue status
 php artisan tinker

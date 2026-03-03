@@ -29,9 +29,10 @@ class SyncLogFactory extends Factory
             'cloud_server_id' => CloudServer::factory(),
             'device_id' => DeviceConfig::factory(),
             'direction' => fake()->randomElement(SyncDirection::cases()),
+            'entity_type' => fake()->randomElement(['attendance', 'employee']),
             'status' => SyncStatus::Completed,
-            'records_synced' => fake()->numberBetween(1, 200),
-            'records_failed' => 0,
+            'records_affected' => fake()->numberBetween(1, 200),
+            'duration_ms' => fake()->numberBetween(100, 30000),
             'started_at' => $startedAt,
             'completed_at' => (clone $startedAt)->modify('+'.fake()->numberBetween(1, 30).' seconds'),
             'error_message' => null,
@@ -45,7 +46,6 @@ class SyncLogFactory extends Factory
     {
         return $this->state(fn (array $attributes) => [
             'status' => SyncStatus::Completed,
-            'records_failed' => 0,
             'error_message' => null,
         ]);
     }
@@ -57,8 +57,7 @@ class SyncLogFactory extends Factory
     {
         return $this->state(fn (array $attributes) => [
             'status' => SyncStatus::Failed,
-            'records_synced' => 0,
-            'records_failed' => fake()->numberBetween(1, 50),
+            'records_affected' => 0,
             'error_message' => fake()->sentence(),
         ]);
     }

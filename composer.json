@@ -10,12 +10,12 @@
     "license": "MIT",
     "require": {
         "php": "^8.2",
+        "0mithun/php-zkteco": "^1.3",
         "inertiajs/inertia-laravel": "^2.0",
         "laravel/fortify": "^1.30",
         "laravel/framework": "^12.0",
         "laravel/tinker": "^2.10.1",
         "laravel/wayfinder": "^0.1.9",
-        "mehedijaman/laravel-zkteco": "dev-main",
         "spatie/laravel-activitylog": "^4.10",
         "spatie/laravel-backup": "^9.3",
         "spatie/laravel-medialibrary": "^11.17",

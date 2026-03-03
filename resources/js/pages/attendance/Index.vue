@@ -5,6 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ref, watch } from 'vue';
+import { exportMethod } from '@/actions/App/Http/Controllers/AttendanceController';
+import { Download } from 'lucide-vue-next';
 
 interface PaginatedData<T> {
     data: T[];
@@ -88,6 +90,15 @@ function formatDate(iso: string): string {
 function formatTime(iso: string): string {
     return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
+
+function exportCsv() {
+    const params: Record<string, string> = {};
+    if (search.value) params.search = search.value;
+    if (dateFrom.value) params.date_from = dateFrom.value;
+    if (dateTo.value) params.date_to = dateTo.value;
+
+    window.location.href = exportMethod.url({ query: params });
+}
 </script>
 
 <template>
@@ -97,7 +108,13 @@ function formatTime(iso: string): string {
         <div class="flex h-full flex-1 flex-col gap-4 overflow-x-auto p-4">
             <div class="flex items-center justify-between">
                 <h1 class="text-xl font-semibold">Attendance Logs</h1>
-                <span class="text-sm text-muted-foreground">{{ logs.total }} total records</span>
+                <div class="flex items-center gap-3">
+                    <span class="text-sm text-muted-foreground">{{ logs.total }} total records</span>
+                    <Button variant="outline" size="sm" @click="exportCsv">
+                        <Download class="mr-2 h-4 w-4" />
+                        Export CSV
+                    </Button>
+                </div>
             </div>
 
             <!-- Filters -->

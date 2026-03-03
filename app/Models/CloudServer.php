@@ -15,6 +15,8 @@ class CloudServer extends Model
         'name',
         'api_base_url',
         'api_key',
+        'branch_id',
+        'branch_name',
         'is_active',
         'is_connected',
         'last_successful_sync',
@@ -31,6 +33,7 @@ class CloudServer extends Model
     {
         return [
             'api_key' => 'encrypted',
+            'branch_id' => 'integer',
             'is_active' => 'boolean',
             'is_connected' => 'boolean',
             'last_successful_sync' => 'datetime',

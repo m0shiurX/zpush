@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AppSettingsController;
 use App\Http\Controllers\Settings\PermissionController;
 use App\Http\Controllers\Settings\RoleController;
 use App\Http\Controllers\Settings\SettingsController;
@@ -11,6 +12,10 @@ Route::middleware(['auth'])->group(function () {
 });
 
 Route::middleware(['auth', 'verified'])->group(function () {
+
+    // App Settings (sync interval, timezone, log retention)
+    Route::get('settings/app', [AppSettingsController::class, 'index'])->name('settings.app');
+    Route::put('settings/app', [AppSettingsController::class, 'update'])->name('settings.app.update');
 
     // User Management
     Route::resource('settings/users', UserController::class)

@@ -113,6 +113,68 @@ class DeviceController extends Controller
     }
 
     /**
+     * Clear attendance on the physical device and in local DB for this device.
+     */
+    public function clearAttendance(DeviceConfig $device, DeviceService $service): JsonResponse
+    {
+        try {
+            $service->clearDeviceAttendance($device);
+
+            $deleted = AttendanceLog::where('device_id', $device->id)->delete();
+
+            return response()->json([
+                'success' => true,
+                'message' => "Device attendance cleared. {$deleted} local records removed.",
+                'deleted' => $deleted,
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'success' => false,
+                'error' => $e->getMessage(),
+            ], 500);
+        } finally {
+            $service->disconnect();
+        }
+    }
+
+    /**
+     * Clear only local attendance records for this device (keeps device untouched).
+     */
+    public function clearLocalAttendance(DeviceConfig $device): JsonResponse
+    {
+        $deleted = AttendanceLog::where('device_id', $device->id)->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => "{$deleted} local attendance records removed.",
+            'deleted' => $deleted,
+        ]);
+    }
+
+    /**
+     * Clear all users from the physical device.
+     */
+    public function clearDeviceUsers(DeviceConfig $device, DeviceService $service): JsonResponse
+    {
+        try {
+            $removed = $service->removeAllUsersFromDevice($device);
+
+            return response()->json([
+                'success' => true,
+                'message' => "{$removed} users removed from device.",
+                'removed' => $removed,
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'success' => false,
+                'error' => $e->getMessage(),
+            ], 500);
+        } finally {
+            $service->disconnect();
+        }
+    }
+
+    /**
      * Toggle device active/inactive status.
      */
     public function update(Request $request, DeviceConfig $device): RedirectResponse

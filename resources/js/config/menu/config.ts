@@ -5,6 +5,8 @@ import { index as settingsIndex } from '@/routes/settings';
 import { index as devicesIndex } from '@/routes/devices';
 import { index as attendanceIndex } from '@/routes/attendance';
 import { index as employeesIndex } from '@/routes/employees';
+import { index as cloudServersIndex } from '@/routes/cloud-servers';
+import { index as syncIndex } from '@/routes/sync';
 import type { MenuConfig } from './types';
 
 /**
@@ -35,6 +37,14 @@ export const menuConfig: MenuConfig = {
             icon: 'DatabaseIcon',
             route: devicesIndex,
             activePatterns: ['/devices', '/attendance', '/employees'],
+        },
+        // Cloud - Cloud server management, sync monitoring
+        {
+            id: 'cloud',
+            titleKey: 'nav.cloud_section',
+            icon: 'CloudIcon',
+            route: cloudServersIndex,
+            activePatterns: ['/cloud-servers', '/sync'],
         },
     ],
 
@@ -89,6 +99,29 @@ export const menuConfig: MenuConfig = {
                             route: employeesIndex,
                             icon: 'UsersIcon',
                             activePatterns: ['/employees*'],
+                        },
+                    ],
+                },
+            ],
+        },
+        // CLOUD - Cloud server and sync management
+        cloud: {
+            titleKey: 'nav.cloud_section',
+            groups: [
+                {
+                    titleKey: 'nav.cloud_management',
+                    items: [
+                        {
+                            titleKey: 'nav.cloud_servers',
+                            route: cloudServersIndex,
+                            icon: 'CloudIcon',
+                            activePatterns: ['/cloud-servers*'],
+                        },
+                        {
+                            titleKey: 'nav.sync_monitor',
+                            route: syncIndex,
+                            icon: 'RefreshIcon',
+                            activePatterns: ['/sync*'],
                         },
                     ],
                 },

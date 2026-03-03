@@ -96,6 +96,8 @@ const user = page.props.auth.user;
                         </h2>
                     </div>
                     <div class="divide-y divide-gray-100">
+                        <SettingsListItem title="App Settings" href="/settings/app" icon="database"
+                            color="orange" />
                         <SettingsListItem title="Backup & Restore" href="/settings/backups" icon="database"
                             color="orange" :disabled="true" :comingSoon="true" />
                         <SettingsListItem title="Activity Logs" href="/settings/activity-logs" icon="clipboard"
@@ -153,6 +155,8 @@ const user = page.props.auth.user;
                         </h2>
                     </div>
                     <div class="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-4">
+                        <SettingsCard title="App Settings" description="Sync intervals, timezone & retention"
+                            href="/settings/app" icon="database" color="orange" />
                         <SettingsCard title="Backup & Restore" description="Manage database backups"
                             href="/settings/backups" icon="database" color="orange" :disabled="true"
                             :comingSoon="true" />

@@ -3,8 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Models\AttendanceLog;
+use App\Models\CloudServer;
 use App\Models\DeviceConfig;
 use App\Models\Employee;
+use App\Models\SyncLog;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -41,12 +43,20 @@ class DashboardController extends Controller
                 'punch_color' => $log->punch_type->color(),
             ]);
 
+        $cloudServer = CloudServer::query()->first();
+        $lastSync = SyncLog::query()
+            ->where('status', 'completed')
+            ->latest('completed_at')
+            ->first();
+
         return Inertia::render('Dashboard', [
             'devices' => $deviceSummaries,
             'todayPunchCount' => AttendanceLog::today()->count(),
             'todayLogs' => $todayLogs,
             'employeeCount' => Employee::active()->count(),
             'unsyncedCount' => AttendanceLog::unsynced()->count(),
+            'hasCloudServer' => $cloudServer !== null,
+            'lastSyncAt' => $lastSync?->completed_at?->toISOString(),
         ]);
     }
 }

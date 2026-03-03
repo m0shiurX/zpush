@@ -3,10 +3,9 @@
 namespace App\Console\Commands;
 
 use App\Models\DeviceConfig;
-use App\Services\ZktecoTcp;
 use Illuminate\Console\Command;
-use MehediJaman\LaravelZkteco\LaravelZkteco;
-use MehediJaman\LaravelZkteco\Lib\Util;
+use Mithun\PhpZkteco\Libs\Services\Util;
+use Mithun\PhpZkteco\Libs\ZKTeco;
 
 class TestDeviceConnection extends Command
 {
@@ -163,7 +162,7 @@ class TestDeviceConnection extends Command
         };
     }
 
-    private function outputDebugDetails(LaravelZkteco $zk): void
+    private function outputDebugDetails(ZKTeco $zk): void
     {
         $rawReply = $zk->_data_recv;
         $rawLength = strlen($rawReply);
@@ -185,19 +184,13 @@ class TestDeviceConnection extends Command
     /**
      * Create the appropriate ZKTeco instance based on protocol.
      */
-    private function createZkInstance(string $ip, int $port, string $protocol, int $timeout): LaravelZkteco
+    private function createZkInstance(string $ip, int $port, string $protocol, int $timeout): ZKTeco
     {
-        if ($protocol === 'tcp') {
-            return new ZktecoTcp($ip, $port, $timeout);
-        }
-
-        $zk = new LaravelZkteco($ip, $port);
-
-        socket_set_option($zk->_zkclient, SOL_SOCKET, SO_RCVTIMEO, [
-            'sec' => $timeout,
-            'usec' => 0,
-        ]);
-
-        return $zk;
+        return new ZKTeco(
+            host: $ip,
+            port: $port,
+            timeout: $timeout,
+            protocol: $protocol,
+        );
     }
 }

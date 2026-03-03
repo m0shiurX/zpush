@@ -23,6 +23,7 @@ class SyncQueueFactory extends Factory
     {
         return [
             'direction' => fake()->randomElement(SyncDirection::cases()),
+            'entity_type' => fake()->randomElement(['attendance', 'employee']),
             'status' => SyncStatus::Pending,
             'payload' => ['employee_id' => fake()->numberBetween(1, 100)],
             'priority' => 10,

@@ -8,8 +8,11 @@ use App\Http\Requests\Setup\TestDeviceConnectionRequest;
 use App\Models\AppSetting;
 use App\Models\CloudServer;
 use App\Models\DeviceConfig;
+use App\Services\CloudApiService;
 use App\Services\DeviceService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -97,12 +100,58 @@ class SetupController extends Controller
      */
     public function storeCloud(StoreCloudServerRequest $request): RedirectResponse
     {
-        CloudServer::updateOrCreate(
+        $server = CloudServer::updateOrCreate(
             ['api_base_url' => $request->validated('api_base_url')],
             $request->validated(),
         );
 
+        // Store branch info in app_settings for quick access
+        if ($request->filled('branch_id')) {
+            AppSetting::set('cloud_branch_id', $request->validated('branch_id'));
+            AppSetting::set('cloud_branch_name', $request->validated('branch_name'));
+        }
+
         return redirect()->route('setup.complete');
+    }
+
+    /**
+     * Step 3 — Test cloud connection (AJAX).
+     */
+    public function testCloud(Request $request): JsonResponse
+    {
+        $request->validate([
+            'api_base_url' => ['required', 'url'],
+            'api_key' => ['required', 'string'],
+        ]);
+
+        $server = new CloudServer([
+            'api_base_url' => $request->input('api_base_url'),
+            'api_key' => $request->input('api_key'),
+        ]);
+
+        $api = new CloudApiService($server);
+
+        return response()->json($api->ping());
+    }
+
+    /**
+     * Step 3 — Fetch branches from cloud (AJAX).
+     */
+    public function fetchBranches(Request $request): JsonResponse
+    {
+        $request->validate([
+            'api_base_url' => ['required', 'url'],
+            'api_key' => ['required', 'string'],
+        ]);
+
+        $server = new CloudServer([
+            'api_base_url' => $request->input('api_base_url'),
+            'api_key' => $request->input('api_key'),
+        ]);
+
+        $api = new CloudApiService($server);
+
+        return response()->json($api->fetchBranches());
     }
 
     /**

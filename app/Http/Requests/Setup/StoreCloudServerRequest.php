@@ -22,6 +22,8 @@ class StoreCloudServerRequest extends FormRequest
         return [
             'api_base_url' => ['required', 'url', 'max:500'],
             'api_key' => ['required', 'string', 'max:500'],
+            'branch_id' => ['nullable', 'integer'],
+            'branch_name' => ['nullable', 'string', 'max:255'],
         ];
     }
 

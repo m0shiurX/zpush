@@ -1,27 +1,57 @@
 # ZPush — Laravel ZKTeco Attendance Middleware
 
-## Project Plan & Architecture (v3 — Web-First, Senior Review)
+## Project Plan & Architecture (v4 — Web-First, Cloud-Integrated)
 
-> **Last updated:** 2026-03-03
+> **Last updated:** 2026-03-04
 >
 > **Strategy:** Build as a standard Laravel 12 web app first. Get core features working and tested against a real ZKTeco K40 device. Wrap in NativePHP for desktop distribution as a **separate final phase** — all NativePHP-specific code is isolated and deferred.
+>
+> **Cloud:** The cloud application is **lavloss** — a Laravel 12 ERP with a full HRM module (employees, departments, shifts, attendance, payroll). zpush acts as a branch-level middleware bridge that syncs employees down from lavloss and pushes processed daily attendance up.
 
 ---
 
 ## 1. Project Overview
 
-A **web application** (later wrappable in NativePHP) that acts as a **middleware bridge** between a **ZKTeco K40** biometric attendance device (LAN) and a **cloud application** (remote API). It runs on the same network as the device, polls for attendance data, manages employee records, and performs bi-directional synchronization with the cloud.
+A **web application** (later wrappable in NativePHP) that acts as a **middleware bridge** between **ZKTeco K40** biometric attendance devices (LAN) and the **lavloss cloud ERP** (remote API). Each zpush instance is deployed at a physical **branch** (factory, office, branch) on the same LAN as the devices, polls for attendance data, manages employee records, and synchronizes with the cloud.
+
+Multiple zpush instances can run at different physical locations, each mapped to a **branch** in lavloss. Each branch has its own departments and employees — no employee overlap between branches.
 
 The application must work **fully offline** — collecting attendance and managing device users even without internet. Cloud sync is an enhancement, not a requirement.
 
 ### Core Objectives
 
-1. Connect to ZKTeco K40 device via `mehedijaman/laravel-zkteco` package
+1. Connect to ZKTeco K40 device(s) via `mehedijaman/laravel-zkteco` package
 2. Store data locally in SQLite for offline resilience and NativePHP compatibility
-3. Sync attendance logs to the cloud when internet is available
-4. Bi-directional employee data sync (cloud ↔ local ↔ device)
-5. First-run setup wizard (no auth required) so any user can configure the app
-6. Fully functional without internet
+3. **Process raw punch events into daily attendance records** (pair check-in/check-out locally)
+4. Sync processed daily attendance UP to lavloss when internet is available
+5. Sync employee data DOWN from lavloss (filtered by branch) to local + device
+6. First-run setup wizard — configure device, connect to cloud, **select branch**
+7. Fully functional without internet
+
+### Multi-Branch Architecture
+
+```
+                    ┌──────────── LAVLOSS (Cloud ERP) ─────────────┐
+                    │  Branches → Departments → Employees → Shifts  │
+                    │  Attendance (daily processed records)          │
+                    │  Payroll, Leaves, etc.                        │
+                    │                                               │
+                    │  API: /api/v1/zpush/...                       │
+                    └──────────┬─────────────────┬──────────────────┘
+                               │                 │
+                   ┌───────────┘                 └──────────────┐
+                   ▼                                            ▼
+     ┌─── zpush (Branch A) ──┐              ┌─── zpush (Branch B) ──┐
+     │  "Main Factory"       │              │  "Branch Office"      │
+     │  K40 #1 (Gate)        │              │  K40 #3 (Entrance)    │
+     │  K40 #2 (Floor)       │              │                       │
+     │                       │              │                       │
+     │  Employees: 120       │              │  Employees: 25        │
+     │  (Prod + Packaging)   │              │  (Sales + Admin)      │
+     └──────────────────────┘              └───────────────────────┘
+```
+
+**Key rule:** Each branch owns its employees. No employee punches at multiple branches. The cloud is the source of truth for employee data.
 
 ### What Already Exists (Do NOT Rebuild)
 
@@ -156,6 +186,8 @@ cloud_servers
 ├── name (string, nullable — fetched from cloud)
 ├── api_base_url (string)
 ├── api_key (string — `encrypted` cast)
+├── branch_id (integer, nullable — selected branch ID in lavloss)
+├── branch_name (string, nullable — denormalized for display)
 ├── is_active (boolean, default true)
 ├── is_connected (boolean, default false)
 ├── last_successful_sync (timestamp, nullable)
@@ -206,6 +238,8 @@ app_settings
 | Key                         | Default        | Purpose                            |
 | --------------------------- | -------------- | ---------------------------------- |
 | `setup_completed`           | `false`        | Controls setup wizard redirect     |
+| `cloud_branch_id`           | `null`         | Selected branch ID in lavloss      |
+| `cloud_branch_name`         | `null`         | Selected branch name (display)     |
 | `sync_interval_seconds`     | `30`           | How often to poll device           |
 | `timezone`                  | `"Asia/Dhaka"` | Display timezone                   |
 | `offline_mode`              | `false`        | User can force offline             |
@@ -219,22 +253,25 @@ app_settings
 ### High-Level Flow
 
 ```
-┌─────────────────┐     ┌──────────────────────────────────────┐     ┌─────────────────┐
-│   ZKTeco K40     │     │     Laravel Web App                  │     │  Cloud Server    │
-│   (LAN Device)   │     │     (Laravel 12 + SQLite + Vue 3)    │     │  (Remote API)    │
-│                  │     │                                      │     │                  │
-│  ◄── TCP/IP ───► │◄───►│  DeviceService ──► SQLite (SoT)     │     │                  │
-│                  │     │                      │               │     │                  │
-│  • Fingerprints  │     │  Vue UI (Inertia) ◄──┤               │     │                  │
-│  • Punch logs    │     │                      │               │     │                  │
-│  • User records  │     │  Sync Engine ────────┤──────────────►│  REST API        │
-│                  │     │  (Queue + Schedule)   │◄──────────────│  /api/v1/...     │
-└─────────────────┘     └──────────────────────────────────────┘     └─────────────────┘
+┌─────────────────┐     ┌──────────────────────────────────────┐     ┌─────────────────────┐
+│   ZKTeco K40     │     │     zpush (Laravel 12 + SQLite)      │     │  lavloss (Cloud ERP) │
+│   (LAN Device)   │     │                                      │     │                      │
+│  ◄── TCP/IP ───► │◄───►│  DeviceService                       │     │                      │
+│                  │     │    ↓ raw punches                     │     │                      │
+│  • Fingerprints  │     │  AttendanceProcessor                  │     │                      │
+│  • Punch logs    │     │    ↓ daily check-in/out pairs        │     │                      │
+│  • User records  │     │  SQLite (local source of truth)       │     │                      │
+│                  │     │    ↓                                 │     │                      │
+│                  │     │  CloudApiService ──POST attendance──►│  AttendanceService    │
+│                  │     │  CloudApiService ◄──GET employees────│  /api/v1/zpush/...    │
+└─────────────────┘     └──────────────────────────────────────┘     └─────────────────────┘
 
-Data Flow Priority:
-  1. Device → Local SQLite   (always runs, even offline)
-  2. Local → Cloud            (runs when internet available)
-  3. Cloud → Local → Device   (runs when internet available)
+Data Flow:
+  1. Device → zpush (raw punches)     — always runs, even offline
+  2. zpush processes → daily records   — pairs check-in/out per employee per day
+  3. zpush → lavloss (daily records)   — runs when internet available
+  4. lavloss → zpush (employees)       — filtered by branch, runs when internet available
+  5. zpush → Device (employee names)   — push names/codes to device after cloud sync
 ```
 
 ### Module Breakdown
@@ -261,10 +298,11 @@ app/
 ├── Services/
 │   ├── DeviceService.php             — ZKTeco device communication (TCP/UDP factory)
 │   ├── ZktecoTcp.php                 — TCP socket adapter for LaravelZkteco
-│   ├── CloudApiService.php           — Cloud API HTTP client
+│   ├── AttendanceProcessorService.php — Pairs raw punches → daily check-in/check-out
+│   ├── CloudApiService.php           — HTTP client for lavloss API
 │   ├── ConnectivityService.php       — Internet & cloud reachability checks
-│   ├── EmployeeSyncService.php       — Bi-directional employee sync logic
-│   ├── AttendanceSyncService.php     — Attendance collection & upload
+│   ├── EmployeeSyncService.php       — Cloud→Local employee sync (filtered by branch)
+│   ├── AttendanceSyncService.php     — Local→Cloud processed attendance upload
 │   └── SyncOrchestrator.php          — Master sync logic
 ├── Jobs/
 │   ├── PollDeviceAttendance.php      — Fetch new punches from device
@@ -342,12 +380,21 @@ No auth required. The wizard gates the entire app — if `app_settings.setup_com
 
 ### Wizard Steps
 
-| Step | Page                      | Purpose                             | Required? |
-| ---- | ------------------------- | ----------------------------------- | --------- |
-| 1    | `Setup/Welcome.vue`       | App intro, what it does             | Yes       |
-| 2    | `Setup/DeviceConnect.vue` | Device IP, port, name + test button | Yes       |
-| 3    | `Setup/CloudConfig.vue`   | Cloud URL + API key, or "skip"      | No        |
-| 4    | `Setup/Complete.vue`      | Summary + "Open Dashboard"          | Yes       |
+| Step | Page                      | Purpose                                           | Required? |
+| ---- | ------------------------- | ------------------------------------------------- | --------- |
+| 1    | `Setup/Welcome.vue`       | App intro, what it does                           | Yes       |
+| 2    | `Setup/DeviceConnect.vue` | Device IP, port, name + test button               | Yes       |
+| 3    | `Setup/CloudConfig.vue`   | Cloud URL + API key + **select branch** from list | No        |
+| 4    | `Setup/Complete.vue`      | Summary + "Open Dashboard"                        | Yes       |
+
+### Cloud Config Step (Step 3) Detail
+
+1. User enters cloud URL + API key
+2. zpush calls `POST /api/v1/zpush/ping` to validate
+3. On success, fetches `GET /api/v1/zpush/branches` — returns available branches
+4. User selects which branch this zpush instance represents
+5. Stores `branch_id` and `branch_name` in `cloud_servers` table and `app_settings`
+6. Can be skipped entirely for offline-only operation
 
 ### EnsureSetupComplete Middleware
 
@@ -532,61 +579,178 @@ Extend the existing middleware to share app-wide status:
 
 ---
 
-## 11. Cloud API Contract
+## 11. Cloud API Contract (lavloss ↔ zpush)
 
-### Endpoints the Cloud Must Expose
+### Authentication
 
-```
-POST   /api/v1/ping                  — Health check + server name
-POST   /api/v1/auth/validate         — Validate API key
-
-GET    /api/v1/employees             — List all (?updated_since=ISO8601)
-POST   /api/v1/employees             — Create (from device enrollment)
-PUT    /api/v1/employees/{code}      — Update by employee_code
-
-POST   /api/v1/attendance/bulk       — Upload batch (max 200 per request)
-       Body: { records: [{ employee_code, timestamp, punch_type, device_name }] }
-       Response: { accepted: 198, rejected: 2, rejected_ids: [...] }
-
-POST   /api/v1/sync/heartbeat        — Client alive + pending counts
-```
-
-### Authentication Header
+zpush authenticates to lavloss using **Sanctum API tokens**. Each zpush instance has a dedicated API token created in lavloss, scoped to a specific site. The token is entered during the setup wizard (Step 3).
 
 ```
-Authorization: Bearer {api_key}
-X-Client-Version: 1.0.0
-X-Client-ID: {unique install id from app_settings}
+Authorization: Bearer {sanctum_token}
+Accept: application/json
+X-ZPush-Version: 1.0.0
 ```
 
----
+### Endpoints (in lavloss)
 
-## 12. Employee Bi-Directional Sync
+All endpoints live under `/api/v1/zpush/` prefix.
 
-### Conflict Resolution
+```
+POST   /api/v1/zpush/ping              — Validate token, return server info
+GET    /api/v1/zpush/branches          — List available branches (for setup wizard)
+GET    /api/v1/zpush/employees         — Employees for the given branch
+         ?branch_id=N                   — Required: branch to fetch from
+         ?updated_since=ISO8601         — Incremental sync support
+POST   /api/v1/zpush/attendance/bulk   — Upload processed daily attendance
+```
 
-| Source | Is Master For                                            |
-| ------ | -------------------------------------------------------- |
-| Cloud  | Employee name, department, active status, employee code  |
-| Device | New enrollments (fingerprint), attendance records        |
-| Local  | Queue state, cloud_id ↔ device_uid mapping, offline data |
+### Endpoint Details
 
-### Change Detection
+#### `POST /api/v1/zpush/ping`
 
-```php
-// Employee model — auto-compute sync_hash on save
-protected static function booted(): void
+Validates the API token and returns server time.
+
+```json
+// Response 200
 {
-    static::saving(function (Employee $employee): void {
-        $employee->sync_hash = md5(json_encode([
-            $employee->name,
-            $employee->department,
-            $employee->employee_code,
-            $employee->is_active,
-        ]));
-    });
+    "success": true,
+    "server_time": "2026-03-04T10:30:00Z"
 }
 ```
+
+#### `GET /api/v1/zpush/branches`
+
+Returns all active branches. Used during setup wizard for branch selection.
+
+```json
+// Response 200
+{
+    "branches": [
+        { "id": 1, "name": "Main Factory", "code": "MF", "department_count": 3, "employee_count": 120 },
+        { "id": 2, "name": "Branch Office", "code": "BO", "department_count": 2, "employee_count": 25 }
+    ]
+}
+```
+
+#### `GET /api/v1/zpush/employees`
+
+Returns active employees for the given branch. Supports incremental sync via `updated_since` parameter.
+
+```json
+// Response 200
+{
+    "employees": [
+        {
+            "id": 42,
+            "employee_code": "EMP-042",
+            "name": "Rahim Ahmed",
+            "department": "Production",
+            "designation": "Machine Operator",
+            "shift": { "name": "Morning", "start_time": "08:00", "end_time": "17:00" },
+            "is_active": true,
+            "updated_at": "2026-03-01T12:00:00Z"
+        }
+    ],
+    "total": 120,
+    "branch": { "id": 1, "name": "Main Factory" }
+}
+```
+
+#### `POST /api/v1/zpush/attendance/bulk`
+
+Upload processed daily attendance records. zpush pairs raw device punches into daily check-in/check-out records before sending.
+
+```json
+// Request
+{
+    "records": [
+        {
+            "employee_code": "EMP-042",
+            "date": "2026-03-04",
+            "check_in": "08:03",
+            "check_out": "17:32",
+            "source": "zpush"
+        },
+        {
+            "employee_code": "EMP-043",
+            "date": "2026-03-04",
+            "check_in": "08:15",
+            "check_out": null,
+            "source": "zpush"
+        }
+    ]
+}
+
+// Response 200
+{
+    "accepted": 1,
+    "rejected": 1,
+    "errors": [
+        { "employee_code": "EMP-043", "error": "check_out is required for completed attendance" }
+    ]
+}
+```
+
+### Data Flow: Attendance Processing (zpush-side)
+
+zpush does NOT send raw punches to the cloud. Instead, it **processes locally** first:
+
+```php
+// AttendanceProcessorService — runs after device polling
+// For each employee on a given date:
+$punches = AttendanceLog::where('employee_id', $employee->id)
+    ->whereDate('timestamp', $date)
+    ->orderBy('timestamp')
+    ->get();
+
+$firstCheckIn = $punches->first(fn ($p) => $p->punch_type === PunchType::CheckIn);
+$lastCheckOut = $punches->last(fn ($p) => $p->punch_type === PunchType::CheckOut);
+
+// Only sync to cloud when we have a complete pair (check-in AND check-out)
+// Incomplete records (check-in only) are held locally until check-out arrives
+return [
+    'employee_code' => $employee->employee_code,
+    'date' => $date,
+    'check_in' => $firstCheckIn?->timestamp->format('H:i'),
+    'check_out' => $lastCheckOut?->timestamp->format('H:i'),
+    'source' => 'zpush',
+];
+```
+
+**Important design decisions:**
+- zpush sends only first check-in and last check-out (simple pair)
+- zpush does NOT calculate overtime or attendance status — lavloss has the shift rules for that
+- If an employee has a split shift in lavloss, the cloud will flag the record via `needs_review`
+- Incomplete records (check-in only, no check-out yet) stay in the sync queue until complete
+
+### Data Flow: Employee Sync (cloud → zpush)
+
+```
+lavloss                zpush                     K40 Device
+  │                       │                          │
+  │──GET /employees─────►│                          │
+  │◄─── [EMP-042, ...]───│                          │
+  │                       │── upsert local DB ─────►│
+  │                       │── set-user on device ──►│
+  │                       │   (name + UID)           │
+```
+
+zpush stores a simplified version of each employee:
+- `cloud_id` → lavloss `employees.id`
+- `employee_code` → the bridge identifier (unique across systems)
+- `name` → `first_name + " " + last_name` from cloud
+- `department` → denormalized string (department name from cloud)
+- `device_uid` → the UID assigned on the ZKTeco device
+
+**Key rule:** Cloud is source of truth for employees. zpush never creates employees. If a new fingerprint is enrolled directly on the device, zpush flags it as "unmatched" for the admin to map to a cloud employee.
+
+### Employee Sync Conflict Resolution
+
+| Source | Is Master For                                           |
+| ------ | ------------------------------------------------------- |
+| Cloud  | Employee name, department, active status, employee code |
+| Device | New enrollments (fingerprint), raw attendance punches   |
+| Local  | cloud_id ↔ device_uid mapping, sync state, offline data |
 
 ---
 
@@ -665,64 +829,88 @@ Use existing `AppLayout.vue` for all authenticated/main pages. Create `SetupLayo
 - [x] Run `vendor/bin/pint --dirty --format agent`
 - [x] Verified: 84 tests passing, real K40 connected via TCP (5 users, 48 attendance records pulled)
 
-### Phase 2 — Setup Wizard + Core UI (3-4 days)
+### Phase 2 — Setup Wizard + Core UI (3-4 days) ✅ COMPLETE
 
 > First user experience. Setup wizard → device config → dashboard.
 
-- [ ] Create `SetupLayout.vue` (clean wizard layout)
-- [ ] Build `SetupController` with all 4 steps
-- [ ] Create `EnsureSetupComplete` middleware, register in `bootstrap/app.php`
-- [ ] Build `Setup/Welcome.vue`, `Setup/DeviceConnect.vue`, `Setup/CloudConfig.vue`, `Setup/Complete.vue`
-- [ ] Build `ConnectionTester.vue` component (reusable for device + cloud)
-- [ ] Build `StatusBadge.vue` component
-- [ ] Create setup routes (no auth)
-- [ ] Write Pest tests for setup flow
-- [ ] Run `vendor/bin/pint --dirty --format agent`
+- [x] Create `SetupLayout.vue` (clean wizard layout)
+- [x] Build `SetupController` with all 4 steps
+- [x] Create `EnsureSetupComplete` middleware, register in `bootstrap/app.php`
+- [x] Build `Setup/Welcome.vue`, `Setup/DeviceConnect.vue`, `Setup/CloudConfig.vue`, `Setup/Complete.vue`
+- [x] Build `ConnectionTester.vue` component (reusable for device + cloud)
+- [x] Build `StatusBadge.vue` component
+- [x] Create setup routes (no auth)
+- [x] Write Pest tests for setup flow
+- [x] Run `vendor/bin/pint --dirty --format agent`
 
-### Phase 3 — Device Polling + Attendance UI (3-4 days)
+### Phase 3 — Device Polling + Attendance UI (3-4 days) ✅ COMPLETE
 
 > Core value: see attendance data from the device in the browser.
 
-- [ ] Build `PollDeviceAttendance` job with `ShouldBeUnique`
-- [ ] Build `AttendanceSyncService` — dedup logic, employee matching
-- [ ] Extend `Dashboard.vue` with device status cards + today's punch count
-- [ ] Build `Devices/Index.vue` + `Devices/Show.vue` with test/poll buttons
-- [ ] Build `Attendance/Index.vue` with date filters, search, pagination
-- [ ] Build `Employees/Index.vue` from device user data
-- [ ] Add `OfflineBanner.vue` component
-- [ ] Configure task scheduling in `routes/console.php`
-- [ ] Extend `HandleInertiaRequests` with `appStatus` shared data
-- [ ] Add device/sync sidebar items to existing `AppSidebar`
-- [ ] Write Pest tests for polling, dedup, attendance controller
-- [ ] Run `vendor/bin/pint --dirty --format agent`
+- [x] Build `PollDeviceAttendance` job with `ShouldBeUnique`
+- [x] Build `AttendanceSyncService` — dedup logic, employee matching
+- [x] Extend `Dashboard.vue` with device status cards + today's punch count
+- [x] Build `Devices/Index.vue` + `Devices/Show.vue` with test/poll buttons
+- [x] Build `Attendance/Index.vue` with date filters, search, pagination
+- [x] Build `Employees/Index.vue` from device user data
+- [ ] Add `OfflineBanner.vue` component (deferred to Phase 5)
+- [x] Configure task scheduling in `routes/console.php`
+- [x] Extend `HandleInertiaRequests` with `appStatus` shared data
+- [x] Add device/sync sidebar items to existing `AppSidebar`
+- [x] Write Pest tests for polling, dedup, attendance controller
+- [x] Run `vendor/bin/pint --dirty --format agent`
 
-### Phase 4 — Cloud Sync Engine (3-4 days)
+### Phase 4 — Cloud Sync Engine (3-4 days) ✅ COMPLETE
 
-> Cloud integration. Offline-first queue. Bi-directional employee sync.
+> Cloud integration with lavloss. Offline-first queue. Branch-scoped employee sync.
 
-- [ ] Build `CloudApiService` — HTTP client with auth headers
-- [ ] Build `ConnectivityService` — reachability checks
-- [ ] Build `ProcessSyncQueue` job — drain queue with backoff
-- [ ] Build `SyncAttendanceToCloud` — batch upload (200/request)
-- [ ] Build `SyncEmployeesFromCloud` — pull + hash comparison
-- [ ] Build `SyncEmployeesToDevice` — push new employees to K40
-- [ ] Build `CloudServerController` — CRUD + test connection
-- [ ] Build `Sync/Monitor.vue` — live sync log + manual trigger
-- [ ] Build `SyncProgress.vue` component
-- [ ] Write Pest tests for sync queue, cloud API service, employee sync
-- [ ] Run `vendor/bin/pint --dirty --format agent`
+**Prerequisites:** lavloss API endpoints must be built first (see Section 11). ✅ DONE
 
-### Phase 5 — Polish & Export (2-3 days)
+- [x] Create `branches` table in lavloss with migration
+- [x] Add `branch_id` to lavloss `departments` table
+- [x] Add `HasApiTokens` to lavloss `User` model
+- [x] Build lavloss `ZpushController` API (ping, branches, employees, bulk attendance)
+- [x] Write Pest tests for lavloss zpush API (18 tests, 70 assertions)
+- [x] Add `branch_id`, `branch_name` columns to `cloud_servers` migration
+- [x] Build `CloudApiService` — HTTP client wrapping lavloss `/api/v1/zpush/*` endpoints
+- [x] Build `ConnectivityService` — reachability checks
+- [x] Build `AttendanceProcessorService` — pairs raw punches into daily check-in/check-out
+- [x] Build `ProcessSyncQueue` job — drain queue with backoff
+- [x] Build `SyncAttendanceToCloud` — process + batch upload (200/request)
+- [x] Build `SyncEmployeesFromCloud` — pull branch-scoped employees, upsert local, hash comparison
+- [x] Build `SyncEmployeesToDevice` — push names/codes to K40 after cloud sync
+- [x] Update setup wizard Step 3 to fetch branches and let user select
+- [x] Build `CloudServerController` — CRUD + test connection
+- [x] Build `Sync/Monitor.vue` — live sync log + manual trigger
+- [x] Build `SyncProgress.vue` component
+- [x] Build `cloud-servers/Index.vue` — cloud server management page
+- [x] Add cloud/sync section to sidebar navigation
+- [x] Fix SyncLogFactory + SyncQueueFactory column mismatches
+- [x] Write Pest tests for sync queue, cloud API service, attendance processor, employee sync
+- [x] Write Pest tests for CloudServerController (10 tests) and SyncController (7 tests)
+- [x] Run `vendor/bin/pint --dirty --format agent`
+- [x] Verified: 212 tests passing, 883 assertions
+
+### Phase 5 — Polish & Export (2-3 days) ✅ COMPLETE
 
 > Settings, export, resilience improvements.
 
-- [ ] Build app settings page (sync interval, timezone, log retention)
-- [ ] Export attendance to CSV
-- [ ] Manual "Sync Now" button on dashboard
-- [ ] Sync history with filtering on `Sync/Monitor.vue`
-- [ ] Improve error messages and validation feedback across all pages
-- [ ] Run full Pest test suite, fix coverage gaps
-- [ ] Run `vendor/bin/pint --dirty --format agent`
+- [x] Build app settings page (sync interval, timezone, log retention, poll interval, auto-sync toggle)
+- [x] Build `AppSettingsController` with `UpdateAppSettingsRequest` form validation
+- [x] Build `settings/AppSettings.vue` — full settings form with card layout
+- [x] Add App Settings link to settings index page (mobile + desktop views)
+- [x] Export attendance to CSV with `StreamedResponse` — respects all existing filters
+- [x] Add Export CSV button to `attendance/Index.vue`
+- [x] Manual "Sync Now" button on dashboard (Unsynced card) with feedback alerts
+- [x] Add `hasCloudServer` and `lastSyncAt` props to Dashboard
+- [x] Sync history with filtering on `Sync/Monitor.vue` (direction, entity type, status, date range)
+- [x] Add filter UI with Select dropdowns and date inputs
+- [x] Write Pest tests: AppSettingsControllerTest (11 tests), AttendanceExportTest (5 tests)
+- [x] Update DashboardTest (+2 tests for cloud server status)
+- [x] Update SyncControllerTest (+4 tests for filtering)
+- [x] Write comprehensive usage guide (`docs/usage-guide.md`)
+- [x] Run `vendor/bin/pint --dirty --format agent`
+- [x] Verified: 234 tests passing, 1053 assertions
 
 ### Phase 6 — NativePHP Desktop Wrapper (DEFERRED)
 

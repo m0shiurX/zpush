@@ -1,11 +1,18 @@
 <script setup lang="ts">
+import { ref } from 'vue';
 import { Head, Link } from '@inertiajs/vue3';
 import AppLayout from '@/layouts/AppLayout.vue';
 import StatusBadge from '@/components/StatusBadge.vue';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Spinner } from '@/components/ui/spinner';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { index as devicesIndex } from '@/routes/devices';
 import { index as attendanceIndex } from '@/routes/attendance';
 import { index as employeesIndex } from '@/routes/employees';
+import { triggerSync } from '@/actions/App/Http/Controllers/SyncController';
+import { Cloud, CheckCircle, XCircle } from 'lucide-vue-next';
+import axios from 'axios';
 
 interface DeviceSummary {
     id: number;
@@ -32,7 +39,28 @@ const props = defineProps<{
     todayLogs: AttendanceEntry[];
     employeeCount: number;
     unsyncedCount: number;
+    hasCloudServer: boolean;
+    lastSyncAt: string | null;
 }>();
+
+const syncing = ref(false);
+const syncResult = ref<{ success: boolean; message: string } | null>(null);
+
+const handleSyncNow = async () => {
+    syncing.value = true;
+    syncResult.value = null;
+    try {
+        const { data } = await axios.post(triggerSync.url());
+        syncResult.value = { success: data.success, message: data.message };
+    } catch (error: any) {
+        syncResult.value = {
+            success: false,
+            message: error.response?.data?.message ?? 'Failed to trigger sync.',
+        };
+    } finally {
+        syncing.value = false;
+    }
+};
 
 function formatTime(iso: string): string {
     return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -104,15 +132,41 @@ function timeAgo(iso: string | null): string {
                         <CardTitle class="text-sm font-medium text-muted-foreground">
                             Unsynced
                         </CardTitle>
+                        <Button
+                            v-if="hasCloudServer"
+                            variant="ghost"
+                            size="sm"
+                            :disabled="syncing"
+                            @click="handleSyncNow"
+                            class="h-7 px-2 text-xs"
+                        >
+                            <Spinner v-if="syncing" class="mr-1" />
+                            <Cloud v-else class="mr-1 h-3 w-3" />
+                            {{ syncing ? 'Syncing...' : 'Sync Now' }}
+                        </Button>
                     </CardHeader>
                     <CardContent>
                         <div class="text-2xl font-bold">{{ unsyncedCount }}</div>
                         <p class="text-xs text-muted-foreground">
-                            Records pending cloud sync
+                            {{ lastSyncAt ? `Last sync: ${timeAgo(lastSyncAt)}` : 'Records pending cloud sync' }}
                         </p>
                     </CardContent>
                 </Card>
             </div>
+
+            <!-- Sync feedback -->
+            <Alert
+                v-if="syncResult?.success"
+                class="border-green-200 bg-green-50 text-green-800 dark:border-green-800 dark:bg-green-950 dark:text-green-200"
+            >
+                <CheckCircle class="h-4 w-4 text-green-600 dark:text-green-400" />
+                <AlertDescription>{{ syncResult.message }}</AlertDescription>
+            </Alert>
+
+            <Alert v-if="syncResult && !syncResult.success" variant="destructive">
+                <XCircle class="h-4 w-4" />
+                <AlertDescription>{{ syncResult.message }}</AlertDescription>
+            </Alert>
 
             <!-- Device Status + Recent Punches -->
             <div class="grid gap-4 md:grid-cols-2">

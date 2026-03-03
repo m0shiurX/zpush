@@ -5,7 +5,7 @@ use App\Models\AttendanceLog;
 use App\Models\DeviceConfig;
 use App\Models\Employee;
 use App\Services\DeviceService;
-use MehediJaman\LaravelZkteco\LaravelZkteco;
+use Mithun\PhpZkteco\Libs\ZKTeco;
 
 beforeEach(function () {
     $this->device = DeviceConfig::factory()->create([
@@ -15,7 +15,7 @@ beforeEach(function () {
 });
 
 test('testConnection returns device info on success', function () {
-    $mockZk = Mockery::mock(LaravelZkteco::class);
+    $mockZk = Mockery::mock(ZKTeco::class);
     $mockZk->shouldReceive('connect')->once()->andReturn(true);
     $mockZk->shouldReceive('serialNumber')->once()->andReturn('ABC123');
     $mockZk->shouldReceive('deviceName')->once()->andReturn('ZK-F18');
@@ -32,7 +32,7 @@ test('testConnection returns device info on success', function () {
 });
 
 test('testConnection returns failure when connection fails', function () {
-    $mockZk = Mockery::mock(LaravelZkteco::class);
+    $mockZk = Mockery::mock(ZKTeco::class);
     $mockZk->shouldReceive('connect')->once()->andReturn(false);
     $mockZk->shouldReceive('disconnect')->zeroOrMoreTimes();
 
@@ -45,10 +45,10 @@ test('testConnection returns failure when connection fails', function () {
 test('pollAttendance stores new attendance records', function () {
     Employee::factory()->create(['device_uid' => 1]);
 
-    $mockZk = Mockery::mock(LaravelZkteco::class);
-    $mockZk->shouldReceive('getAttendance')->once()->andReturn([
-        ['uid' => 1, 'id' => '1', 'state' => 1, 'timestamp' => '2025-03-01 09:00:00', 'type' => 0],
-        ['uid' => 1, 'id' => '1', 'state' => 1, 'timestamp' => '2025-03-01 18:00:00', 'type' => 1],
+    $mockZk = Mockery::mock(ZKTeco::class);
+    $mockZk->shouldReceive('getAttendances')->once()->andReturn([
+        ['uid' => 1, 'user_id' => '1', 'state' => 1, 'record_time' => '2025-03-01 09:00:00', 'type' => 0],
+        ['uid' => 1, 'user_id' => '1', 'state' => 1, 'record_time' => '2025-03-01 18:00:00', 'type' => 1],
     ]);
 
     $service = new DeviceService;
@@ -72,9 +72,9 @@ test('pollAttendance skips duplicate records', function () {
         'timestamp' => '2025-03-01 09:00:00',
     ]);
 
-    $mockZk = Mockery::mock(LaravelZkteco::class);
-    $mockZk->shouldReceive('getAttendance')->once()->andReturn([
-        ['uid' => 1, 'id' => '1', 'state' => 1, 'timestamp' => '2025-03-01 09:00:00', 'type' => 0],
+    $mockZk = Mockery::mock(ZKTeco::class);
+    $mockZk->shouldReceive('getAttendances')->once()->andReturn([
+        ['uid' => 1, 'user_id' => '1', 'state' => 1, 'record_time' => '2025-03-01 09:00:00', 'type' => 0],
     ]);
 
     $service = new DeviceService;
@@ -87,11 +87,16 @@ test('pollAttendance skips duplicate records', function () {
         ->and(AttendanceLog::count())->toBe(1);
 });
 
-test('syncUsersFromDevice upserts employees', function () {
-    $mockZk = Mockery::mock(LaravelZkteco::class);
-    $mockZk->shouldReceive('getUser')->once()->andReturn([
-        '1' => ['uid' => 1, 'userid' => '1', 'name' => 'Alice', 'role' => 0, 'password' => '', 'cardno' => '00001234567'],
-        '2' => ['uid' => 2, 'userid' => '2', 'name' => 'Bob', 'role' => 0, 'password' => '', 'cardno' => '00000000000'],
+test('syncUsersFromDevice matches existing employees by device_uid', function () {
+    // Create two employees that are already in the DB (from cloud sync)
+    $alice = Employee::factory()->create(['device_uid' => 1, 'name' => 'Alice', 'card_number' => null]);
+    $bob = Employee::factory()->create(['device_uid' => 2, 'name' => 'Bob', 'card_number' => null]);
+
+    $mockZk = Mockery::mock(ZKTeco::class);
+    $mockZk->shouldReceive('getUsers')->once()->andReturn([
+        '1' => ['uid' => 1, 'user_id' => '1', 'name' => 'Alice', 'role' => 0, 'password' => '', 'card_no' => '00001234567'],
+        '2' => ['uid' => 2, 'user_id' => '2', 'name' => 'Bob', 'role' => 0, 'password' => '', 'card_no' => '00000000000'],
+        '3' => ['uid' => 999, 'user_id' => '999', 'name' => 'Unknown', 'role' => 0, 'password' => '', 'card_no' => '00000000000'],
     ]);
 
     $service = new DeviceService;
@@ -99,14 +104,51 @@ test('syncUsersFromDevice upserts employees', function () {
 
     $result = $service->syncUsersFromDevice($this->device);
 
+    // Only 2 matched — the unknown UID 999 is skipped
     expect($result)->toHaveCount(2)
         ->and(Employee::count())->toBe(2)
-        ->and(Employee::where('name', 'Alice')->first()->card_number)->toBe('1234567');
+        ->and($alice->fresh()->card_number)->toBe('1234567');
+});
+
+test('syncUsersFromDevice does not create employees from unknown device users', function () {
+    $mockZk = Mockery::mock(ZKTeco::class);
+    $mockZk->shouldReceive('getUsers')->once()->andReturn([
+        '1' => ['uid' => 100, 'user_id' => '100', 'name' => 'Ghost', 'role' => 0, 'password' => '', 'card_no' => '00000000000'],
+    ]);
+
+    $service = new DeviceService;
+    injectZkMock($service, $this->device, $mockZk);
+
+    $result = $service->syncUsersFromDevice($this->device);
+
+    expect($result)->toHaveCount(0)
+        ->and(Employee::count())->toBe(0);
+});
+
+test('pollAttendance skips records from unknown UIDs', function () {
+    Employee::factory()->create(['device_uid' => 1]);
+
+    $mockZk = Mockery::mock(ZKTeco::class);
+    $mockZk->shouldReceive('getAttendances')->once()->andReturn([
+        ['uid' => 1, 'user_id' => '1', 'state' => 1, 'record_time' => '2025-03-01 09:00:00', 'type' => 0],
+        ['uid' => 999, 'user_id' => '999', 'state' => 1, 'record_time' => '2025-03-01 10:00:00', 'type' => 0],
+    ]);
+
+    $service = new DeviceService;
+    injectZkMock($service, $this->device, $mockZk);
+
+    $result = $service->pollAttendance($this->device);
+
+    // Only UID 1 is imported, UID 999 is skipped
+    expect($result['new'])->toBe(1)
+        ->and($result['total'])->toBe(2)
+        ->and(AttendanceLog::count())->toBe(1)
+        ->and(AttendanceLog::first()->employee_id)->not->toBeNull();
 });
 
 test('pollAttendance returns zeros when no logs on device', function () {
-    $mockZk = Mockery::mock(LaravelZkteco::class);
-    $mockZk->shouldReceive('getAttendance')->once()->andReturn([]);
+    $mockZk = Mockery::mock(ZKTeco::class);
+    $mockZk->shouldReceive('getAttendances')->once()->andReturn([]);
 
     $service = new DeviceService;
     injectZkMock($service, $this->device, $mockZk);
@@ -140,7 +182,7 @@ function injectZkMock(DeviceService $service, DeviceConfig $device, $mockZk): vo
 
 /**
  * Simulate testConnection by manually calling mock methods
- * (avoids needing to mock the LaravelZkteco constructor).
+ * (avoids needing to mock the ZKTeco constructor).
  *
  * @return array{success: bool, serial_number: string|null, device_name: string|null, firmware: string|null, error: string|null}
  */

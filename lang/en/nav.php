@@ -29,6 +29,14 @@ return [
     'employees' => 'Employees',
 
     // ═══════════════════════════════════════════════════════════════
+    // CLOUD & SYNC MODULE
+    // ═══════════════════════════════════════════════════════════════
+    'cloud_section' => 'Cloud',
+    'cloud_management' => 'Cloud Management',
+    'cloud_servers' => 'Cloud Servers',
+    'sync_monitor' => 'Sync Monitor',
+
+    // ═══════════════════════════════════════════════════════════════
     // SETTINGS MODULE
     // ═══════════════════════════════════════════════════════════════
     'access_control' => 'Access Control',

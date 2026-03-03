@@ -4,10 +4,12 @@ import AppLayout from '@/layouts/AppLayout.vue';
 import StatusBadge from '@/components/StatusBadge.vue';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { test, poll } from '@/actions/App/Http/Controllers/DeviceController';
+import { test, poll, clearAttendance, clearLocalAttendance, clearDeviceUsers } from '@/actions/App/Http/Controllers/DeviceController';
 import { index as devicesIndex } from '@/routes/devices';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ref } from 'vue';
 import axios from 'axios';
+import { Trash2, AlertTriangle, UserX } from 'lucide-vue-next';
 
 interface DeviceDetail {
     id: number;
@@ -40,6 +42,10 @@ const props = defineProps<{
 
 const testing = ref(false);
 const polling = ref(false);
+const clearingDevice = ref(false);
+const clearingLocal = ref(false);
+const clearingUsers = ref(false);
+const showClearConfirm = ref<'device' | 'local' | 'users' | null>(null);
 const resultMessage = ref('');
 const resultSuccess = ref(false);
 
@@ -79,6 +85,69 @@ async function handlePoll() {
         resultMessage.value = error.response?.data?.error ?? 'Network error';
     } finally {
         polling.value = false;
+    }
+}
+
+async function handleClearDeviceAttendance() {
+    clearingDevice.value = true;
+    resultMessage.value = '';
+    showClearConfirm.value = null;
+
+    try {
+        const { data } = await axios.delete(clearAttendance.url({ device: props.device.id }));
+        resultSuccess.value = data.success;
+        resultMessage.value = data.success
+            ? data.message
+            : `Error: ${data.error}`;
+        if (data.success) {
+            router.reload({ only: ['recentLogs', 'device'] });
+        }
+    } catch (error: any) {
+        resultSuccess.value = false;
+        resultMessage.value = error.response?.data?.error ?? 'Network error';
+    } finally {
+        clearingDevice.value = false;
+    }
+}
+
+async function handleClearLocalAttendance() {
+    clearingLocal.value = true;
+    resultMessage.value = '';
+    showClearConfirm.value = null;
+
+    try {
+        const { data } = await axios.delete(clearLocalAttendance.url({ device: props.device.id }));
+        resultSuccess.value = data.success;
+        resultMessage.value = data.success
+            ? data.message
+            : `Error: ${data.error}`;
+        if (data.success) {
+            router.reload({ only: ['recentLogs', 'device'] });
+        }
+    } catch (error: any) {
+        resultSuccess.value = false;
+        resultMessage.value = error.response?.data?.error ?? 'Network error';
+    } finally {
+        clearingLocal.value = false;
+    }
+}
+
+async function handleClearDeviceUsers() {
+    clearingUsers.value = true;
+    resultMessage.value = '';
+    showClearConfirm.value = null;
+
+    try {
+        const { data } = await axios.delete(clearDeviceUsers.url({ device: props.device.id }));
+        resultSuccess.value = data.success;
+        resultMessage.value = data.success
+            ? data.message
+            : `Error: ${data.error}`;
+    } catch (error: any) {
+        resultSuccess.value = false;
+        resultMessage.value = error.response?.data?.error ?? 'Network error';
+    } finally {
+        clearingUsers.value = false;
     }
 }
 
@@ -156,13 +225,57 @@ function timeAgo(iso: string | null): string {
                     </div>
 
                     <!-- Actions -->
-                    <div class="flex gap-2">
+                    <div class="flex flex-wrap gap-2">
                         <Button variant="outline" :disabled="testing" @click="handleTest">
                             {{ testing ? 'Testing...' : 'Test Connection' }}
                         </Button>
                         <Button :disabled="polling" @click="handlePoll">
                             {{ polling ? 'Polling...' : 'Poll Attendance' }}
                         </Button>
+                        <Button variant="destructive" :disabled="clearingDevice" @click="showClearConfirm = 'device'">
+                            <Trash2 class="mr-1 h-4 w-4" />
+                            {{ clearingDevice ? 'Clearing...' : 'Clear Device & Local' }}
+                        </Button>
+                        <Button variant="outline" class="text-destructive border-destructive/50 hover:bg-destructive/10" :disabled="clearingLocal" @click="showClearConfirm = 'local'">
+                            <Trash2 class="mr-1 h-4 w-4" />
+                            {{ clearingLocal ? 'Clearing...' : 'Clear Local Only' }}
+                        </Button>
+                        <Button variant="outline" class="text-destructive border-destructive/50 hover:bg-destructive/10" :disabled="clearingUsers" @click="showClearConfirm = 'users'">
+                            <UserX class="mr-1 h-4 w-4" />
+                            {{ clearingUsers ? 'Clearing...' : 'Clear Device Users' }}
+                        </Button>
+                    </div>
+
+                    <!-- Clear confirmation -->
+                    <div v-if="showClearConfirm" class="mt-4 rounded-md border border-destructive/50 bg-destructive/5 p-4">
+                        <div class="flex items-start gap-3">
+                            <AlertTriangle class="h-5 w-5 text-destructive shrink-0 mt-0.5" />
+                            <div>
+                                <p class="text-sm font-medium text-destructive">
+                                    {{ showClearConfirm === 'device'
+                                        ? 'Clear attendance from the device AND local database?'
+                                        : showClearConfirm === 'users'
+                                            ? 'Remove ALL users from the physical device?'
+                                            : 'Clear local attendance records for this device?' }}
+                                </p>
+                                <p class="text-xs text-muted-foreground mt-1">
+                                    {{ showClearConfirm === 'device'
+                                        ? 'This will wipe all attendance logs from the physical device and remove all local records. This cannot be undone.'
+                                        : showClearConfirm === 'users'
+                                            ? 'This removes all enrolled users (and their fingerprints) from the device. You will need to re-push employees and re-enroll fingerprints.'
+                                            : 'This only removes records from zpush\'s database. The device keeps its logs.' }}
+                                </p>
+                                <div class="flex gap-2 mt-3">
+                                    <Button size="sm" variant="destructive"
+                                        @click="showClearConfirm === 'device' ? handleClearDeviceAttendance() : showClearConfirm === 'users' ? handleClearDeviceUsers() : handleClearLocalAttendance()">
+                                        Yes, Clear
+                                    </Button>
+                                    <Button size="sm" variant="outline" @click="showClearConfirm = null">
+                                        Cancel
+                                    </Button>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </CardContent>
             </Card>

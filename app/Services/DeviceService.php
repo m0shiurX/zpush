@@ -10,11 +10,11 @@ use App\Models\Employee;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
-use MehediJaman\LaravelZkteco\LaravelZkteco;
+use Mithun\PhpZkteco\Libs\ZKTeco;
 
 class DeviceService
 {
-    private ?LaravelZkteco $zk = null;
+    private ?ZKTeco $zk = null;
 
     private ?DeviceConfig $device = null;
 
@@ -98,7 +98,11 @@ class DeviceService
     }
 
     /**
-     * Fetch users from the device and upsert into the employees table.
+     * Fetch users from the device and match with existing employees.
+     *
+     * Only updates card_number for known employees (matched by device_uid).
+     * Does NOT create new employees from unknown device users — employees
+     * should come from the cloud, not from old device memory.
      *
      * @return Collection<int, Employee>
      *
@@ -108,7 +112,7 @@ class DeviceService
     {
         $this->ensureConnected($device);
 
-        $rawUsers = $this->zk->getUser();
+        $rawUsers = $this->zk->getUsers();
 
         if (! is_array($rawUsers) || empty($rawUsers)) {
             Log::info("No users found on device [{$device->name}].");
@@ -119,19 +123,25 @@ class DeviceService
         $synced = collect();
 
         foreach ($rawUsers as $user) {
-            $employee = Employee::updateOrCreate(
-                ['device_uid' => (int) $user['uid']],
-                [
-                    'name' => $user['name'] ?: "User {$user['userid']}",
-                    'employee_code' => $user['userid'],
-                    'card_number' => ltrim($user['cardno'], '0') ?: null,
-                ]
-            );
+            $uid = (int) $user['uid'];
+
+            // Only update existing employees — don't create from device memory
+            $employee = Employee::where('device_uid', $uid)->first();
+
+            if (! $employee) {
+                continue;
+            }
+
+            // Update card number if the device has it
+            $cardNo = ltrim($user['card_no'] ?? '', '0') ?: null;
+            if ($cardNo && $employee->card_number !== $cardNo) {
+                $employee->update(['card_number' => $cardNo]);
+            }
 
             $synced->push($employee);
         }
 
-        Log::info("Synced {$synced->count()} users from device [{$device->name}].");
+        Log::info("Matched {$synced->count()} employees on device [{$device->name}] (of " . count($rawUsers) . ' device users).');
 
         return $synced;
     }
@@ -147,7 +157,7 @@ class DeviceService
     {
         $this->ensureConnected($device);
 
-        $rawLogs = $this->zk->getAttendance();
+        $rawLogs = $this->zk->getAttendances();
 
         if (! is_array($rawLogs) || empty($rawLogs)) {
             $device->update(['last_poll_at' => now()]);
@@ -158,12 +168,24 @@ class DeviceService
         $newCount = 0;
         $duplicateCount = 0;
 
+        $skippedCount = 0;
+
         foreach ($rawLogs as $log) {
-            $timestamp = Carbon::parse($log['timestamp']);
+            $uid = (int) $log['uid'];
+            $employeeId = Employee::where('device_uid', $uid)->value('id');
+
+            // Skip attendance from unknown UIDs — don't import orphaned records
+            if (! $employeeId) {
+                $skippedCount++;
+
+                continue;
+            }
+
+            $timestamp = Carbon::parse($log['record_time']);
             $punchType = PunchType::tryFrom((int) $log['type']) ?? PunchType::CheckIn;
 
             $existed = AttendanceLog::where('device_id', $device->id)
-                ->where('device_uid', (int) $log['uid'])
+                ->where('device_uid', $uid)
                 ->where('timestamp', $timestamp)
                 ->exists();
 
@@ -174,14 +196,18 @@ class DeviceService
             }
 
             AttendanceLog::create([
-                'employee_id' => Employee::where('device_uid', (int) $log['uid'])->value('id'),
+                'employee_id' => $employeeId,
                 'device_id' => $device->id,
-                'device_uid' => (int) $log['uid'],
+                'device_uid' => $uid,
                 'timestamp' => $timestamp,
                 'punch_type' => $punchType,
             ]);
 
             $newCount++;
+        }
+
+        if ($skippedCount > 0) {
+            Log::info("Polled device [{$device->name}]: Skipped {$skippedCount} records from unknown UIDs.");
         }
 
         $device->update(['last_poll_at' => now()]);
@@ -240,6 +266,35 @@ class DeviceService
     }
 
     /**
+     * Remove all users from the device.
+     *
+     * @return int Number of users removed.
+     *
+     * @throws DeviceConnectionException
+     */
+    public function removeAllUsersFromDevice(DeviceConfig $device): int
+    {
+        $this->ensureConnected($device);
+
+        $users = $this->zk->getUsers();
+
+        if (! is_array($users) || empty($users)) {
+            return 0;
+        }
+
+        $removed = 0;
+        foreach ($users as $user) {
+            if ($this->zk->removeUser((int) $user['uid'])) {
+                $removed++;
+            }
+        }
+
+        Log::info("Removed {$removed} users from device [{$device->name}].");
+
+        return $removed;
+    }
+
+    /**
      * Get device info (serial number, name, firmware, etc.).
      *
      * @return array{serial_number: string|null, device_name: string|null, firmware: string|null, platform: string|null, user_count: int}
@@ -250,7 +305,7 @@ class DeviceService
     {
         $this->ensureConnected($device);
 
-        $users = $this->zk->getUser();
+        $users = $this->zk->getUsers();
 
         return [
             'serial_number' => $this->zk->serialNumber() ?: null,
@@ -279,12 +334,12 @@ class DeviceService
     /**
      * Create the appropriate ZKTeco instance based on device protocol.
      */
-    private function createZkInstance(DeviceConfig $device): LaravelZkteco
+    private function createZkInstance(DeviceConfig $device): ZKTeco
     {
-        if ($device->isTcp()) {
-            return new ZktecoTcp($device->ip_address, $device->port);
-        }
-
-        return new LaravelZkteco($device->ip_address, $device->port);
+        return new ZKTeco(
+            host: $device->ip_address,
+            port: $device->port,
+            protocol: $device->isTcp() ? 'tcp' : 'udp',
+        );
     }
 }

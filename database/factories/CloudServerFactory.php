@@ -23,6 +23,8 @@ class CloudServerFactory extends Factory
             'name' => fake()->randomElement(['Production', 'Staging', 'HR Portal', 'ERP']).' Server',
             'api_base_url' => fake()->url(),
             'api_key' => fake()->sha256(),
+            'branch_id' => null,
+            'branch_name' => null,
             'is_active' => true,
             'is_connected' => false,
             'last_successful_sync' => null,
@@ -40,6 +42,17 @@ class CloudServerFactory extends Factory
             'is_connected' => true,
             'last_successful_sync' => now(),
             'sync_failure_count' => 0,
+        ]);
+    }
+
+    /**
+     * Indicate the server is connected to a specific branch.
+     */
+    public function withBranch(int $branchId = 1, string $branchName = 'Main Factory'): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'branch_id' => $branchId,
+            'branch_name' => $branchName,
         ]);
     }
 

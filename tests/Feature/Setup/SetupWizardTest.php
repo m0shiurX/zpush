@@ -4,6 +4,7 @@ use App\Models\AppSetting;
 use App\Models\CloudServer;
 use App\Models\DeviceConfig;
 use App\Services\DeviceService;
+use Illuminate\Support\Facades\Http;
 
 // ==========================================
 // Welcome Page
@@ -233,6 +234,109 @@ test('storing cloud server validates url format', function () {
     ]);
 
     $response->assertSessionHasErrors('api_base_url');
+});
+
+test('storing cloud server saves branch info', function () {
+    $response = $this->post(route('setup.cloud.store'), [
+        'api_base_url' => 'https://api.example.com',
+        'api_key' => 'my-secret-key',
+        'branch_id' => 5,
+        'branch_name' => 'Main Branch',
+    ]);
+
+    $response->assertRedirect(route('setup.complete'));
+
+    $server = CloudServer::first();
+    expect($server->branch_id)->toBe(5)
+        ->and($server->branch_name)->toBe('Main Branch');
+
+    expect(AppSetting::get('cloud_branch_id'))->toBe(5)
+        ->and(AppSetting::get('cloud_branch_name'))->toBe('Main Branch');
+});
+
+// ==========================================
+// Test Cloud Connection
+// ==========================================
+
+test('test cloud connection returns success when API is reachable', function () {
+    Http::fake([
+        '*/api/v1/zpush/ping' => Http::response([
+            'success' => true,
+            'server_time' => now()->toIso8601String(),
+        ]),
+    ]);
+
+    $response = $this->postJson(route('setup.cloud.test'), [
+        'api_base_url' => 'https://api.example.com',
+        'api_key' => 'test-key',
+    ]);
+
+    $response->assertOk()
+        ->assertJson(['success' => true]);
+});
+
+test('test cloud connection returns failure when API is unreachable', function () {
+    Http::fake([
+        '*/api/v1/zpush/ping' => Http::response(['message' => 'Unauthorized'], 401),
+    ]);
+
+    $response = $this->postJson(route('setup.cloud.test'), [
+        'api_base_url' => 'https://api.example.com',
+        'api_key' => 'bad-key',
+    ]);
+
+    $response->assertOk()
+        ->assertJson(['success' => false]);
+});
+
+test('test cloud connection validates input', function () {
+    $response = $this->postJson(route('setup.cloud.test'), []);
+
+    $response->assertUnprocessable()
+        ->assertJsonValidationErrors(['api_base_url', 'api_key']);
+});
+
+// ==========================================
+// Fetch Branches
+// ==========================================
+
+test('fetch branches returns list from cloud server', function () {
+    Http::fake([
+        '*/api/v1/zpush/branches' => Http::response([
+            'success' => true,
+            'branches' => [
+                ['id' => 1, 'name' => 'Main', 'department_count' => 5, 'employee_count' => 50],
+                ['id' => 2, 'name' => 'Branch 2', 'department_count' => 3, 'employee_count' => 20],
+            ],
+        ]),
+    ]);
+
+    $response = $this->postJson(route('setup.cloud.branches'), [
+        'api_base_url' => 'https://api.example.com',
+        'api_key' => 'test-key',
+    ]);
+
+    $response->assertOk()
+        ->assertJson([
+            'success' => true,
+            'branches' => [
+                ['id' => 1, 'name' => 'Main'],
+            ],
+        ]);
+});
+
+test('fetch branches returns error on failure', function () {
+    Http::fake([
+        '*/api/v1/zpush/branches' => Http::response(['message' => 'Unauthorized'], 401),
+    ]);
+
+    $response = $this->postJson(route('setup.cloud.branches'), [
+        'api_base_url' => 'https://api.example.com',
+        'api_key' => 'bad-key',
+    ]);
+
+    $response->assertOk()
+        ->assertJson(['success' => false]);
 });
 
 // ==========================================

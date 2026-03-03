@@ -3,6 +3,7 @@ import { usePage } from '@inertiajs/vue3';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 import Header from '@/components/header/Header.vue';
 import Sidebar from '@/components/sidebar/Sidebar.vue';
+import OfflineBanner from '@/components/OfflineBanner.vue';
 import {
     Dialog,
     DialogContent,
@@ -60,6 +61,7 @@ onUnmounted(() => {
 
         <Sidebar />
         <div class="flex min-w-0 flex-1 flex-col transition-all duration-300" :class="contentMarginClass">
+            <OfflineBanner />
             <Header :available-languages="availableLanguages" :current-locale="currentLocale">
                 <template #page-title>
                     <slot name="page-title" />

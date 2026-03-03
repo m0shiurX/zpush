@@ -5,8 +5,10 @@
     "guidelines": true,
     "herd_mcp": true,
     "mcp": true,
+    "nightwatch_mcp": false,
     "packages": [
-        "laravel/fortify"
+        "laravel/fortify",
+        "spatie/laravel-medialibrary"
     ],
     "sail": false,
     "skills": [
@@ -14,6 +16,7 @@
         "pest-testing",
         "inertia-vue-development",
         "tailwindcss-development",
-        "developing-with-fortify"
+        "developing-with-fortify",
+        "medialibrary-development"
     ]
 }

@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\EnsureSetupComplete;
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
 use Illuminate\Foundation\Application;
@@ -10,12 +11,18 @@ use Illuminate\Support\Facades\Route;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
-        web: __DIR__ . '/../routes/web.php',
-        commands: __DIR__ . '/../routes/console.php',
+        web: __DIR__.'/../routes/web.php',
+        commands: __DIR__.'/../routes/console.php',
         health: '/up',
         then: function () {
             Route::middleware('web')
+                ->group(base_path('routes/setup.php'));
+
+            Route::middleware('web')
                 ->group(base_path('routes/account.php'));
+
+            Route::middleware('web')
+                ->group(base_path('routes/devices.php'));
         },
     )
     ->withMiddleware(function (Middleware $middleware): void {
@@ -25,6 +32,10 @@ return Application::configure(basePath: dirname(__DIR__))
             HandleAppearance::class,
             HandleInertiaRequests::class,
             AddLinkHeadersForPreloadedAssets::class,
+        ]);
+
+        $middleware->alias([
+            'setup.complete' => EnsureSetupComplete::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

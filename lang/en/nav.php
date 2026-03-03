@@ -20,6 +20,15 @@ return [
     'coming_soon' => 'Coming Soon',
 
     // ═══════════════════════════════════════════════════════════════
+    // DEVICE & ATTENDANCE MODULE
+    // ═══════════════════════════════════════════════════════════════
+    'devices_section' => 'Devices',
+    'device_management' => 'Device Management',
+    'devices' => 'Devices',
+    'attendance' => 'Attendance',
+    'employees' => 'Employees',
+
+    // ═══════════════════════════════════════════════════════════════
     // SETTINGS MODULE
     // ═══════════════════════════════════════════════════════════════
     'access_control' => 'Access Control',

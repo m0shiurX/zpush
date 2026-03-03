@@ -21,12 +21,13 @@ class CloudServerFactory extends Factory
     {
         return [
             'name' => fake()->randomElement(['Production', 'Staging', 'HR Portal', 'ERP']).' Server',
-            'base_url' => fake()->url(),
+            'api_base_url' => fake()->url(),
             'api_key' => fake()->sha256(),
             'is_active' => true,
-            'last_sync_at' => null,
-            'last_sync_status' => null,
-            'sync_failures' => 0,
+            'is_connected' => false,
+            'last_successful_sync' => null,
+            'last_failed_sync' => null,
+            'sync_failure_count' => 0,
         ];
     }
 
@@ -36,9 +37,9 @@ class CloudServerFactory extends Factory
     public function connected(): static
     {
         return $this->state(fn (array $attributes) => [
-            'last_sync_at' => now(),
-            'last_sync_status' => 'success',
-            'sync_failures' => 0,
+            'is_connected' => true,
+            'last_successful_sync' => now(),
+            'sync_failure_count' => 0,
         ]);
     }
 
@@ -48,9 +49,9 @@ class CloudServerFactory extends Factory
     public function failing(): static
     {
         return $this->state(fn (array $attributes) => [
-            'last_sync_at' => now()->subMinutes(10),
-            'last_sync_status' => 'failed',
-            'sync_failures' => fake()->numberBetween(1, 5),
+            'is_connected' => false,
+            'last_failed_sync' => now()->subMinutes(10),
+            'sync_failure_count' => fake()->numberBetween(1, 5),
         ]);
     }
 

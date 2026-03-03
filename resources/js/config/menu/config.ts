@@ -2,6 +2,9 @@
 import { dashboard } from '@/routes';
 import { home } from '@/routes';
 import { index as settingsIndex } from '@/routes/settings';
+import { index as devicesIndex } from '@/routes/devices';
+import { index as attendanceIndex } from '@/routes/attendance';
+import { index as employeesIndex } from '@/routes/employees';
 import type { MenuConfig } from './types';
 
 /**
@@ -9,6 +12,7 @@ import type { MenuConfig } from './types';
  *
  * Navigation Structure:
  * - Main: Dashboard
+ * - Devices: Devices, Attendance, Employees
  * - Settings: User Management, Roles, Permissions
  */
 export const menuConfig: MenuConfig = {
@@ -23,6 +27,14 @@ export const menuConfig: MenuConfig = {
             icon: 'DashboardIcon',
             route: dashboard,
             activePatterns: ['/dashboard'],
+        },
+        // Devices - Device management, attendance, employees
+        {
+            id: 'devices',
+            titleKey: 'nav.devices_section',
+            icon: 'DatabaseIcon',
+            route: devicesIndex,
+            activePatterns: ['/devices', '/attendance', '/employees'],
         },
     ],
 
@@ -48,6 +60,35 @@ export const menuConfig: MenuConfig = {
                             route: home,
                             icon: 'KanbanIcon',
                             activePatterns: ['/'],
+                        },
+                    ],
+                },
+            ],
+        },
+        // DEVICES - Device management
+        devices: {
+            titleKey: 'nav.devices_section',
+            groups: [
+                {
+                    titleKey: 'nav.device_management',
+                    items: [
+                        {
+                            titleKey: 'nav.devices',
+                            route: devicesIndex,
+                            icon: 'DatabaseIcon',
+                            activePatterns: ['/devices*'],
+                        },
+                        {
+                            titleKey: 'nav.attendance',
+                            route: attendanceIndex,
+                            icon: 'ClockIcon',
+                            activePatterns: ['/attendance*'],
+                        },
+                        {
+                            titleKey: 'nav.employees',
+                            route: employeesIndex,
+                            icon: 'UsersIcon',
+                            activePatterns: ['/employees*'],
                         },
                     ],
                 },

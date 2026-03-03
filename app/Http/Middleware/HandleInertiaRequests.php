@@ -2,6 +2,9 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\AppSetting;
+use App\Models\AttendanceLog;
+use App\Models\DeviceConfig;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\File;
@@ -44,10 +47,29 @@ class HandleInertiaRequests extends Middleware
                 'user' => $request->user(),
             ],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
+            'appStatus' => fn () => $this->getAppStatus(),
             'locale' => app()->getLocale(),
             'availableLocales' => config('app.available_languages', []),
             'translations' => fn () => $this->getTranslations(),
             'i18nConfig' => fn () => $this->getI18nConfig(),
+        ];
+    }
+
+    /**
+     * Get the application status for the frontend.
+     *
+     * @return array{setup_completed: bool, device_count: int, connected_devices: int, unsynced_count: int, timezone: string}
+     */
+    protected function getAppStatus(): array
+    {
+        $devices = DeviceConfig::active()->get();
+
+        return [
+            'setup_completed' => AppSetting::isTrue('setup_completed'),
+            'device_count' => $devices->count(),
+            'connected_devices' => $devices->filter(fn (DeviceConfig $d) => $d->isConnected())->count(),
+            'unsynced_count' => AttendanceLog::unsynced()->count(),
+            'timezone' => config('app.timezone', 'UTC'),
         ];
     }
 

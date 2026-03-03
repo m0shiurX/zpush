@@ -2,7 +2,7 @@
 
 ## Project Plan & Architecture (v3 — Web-First, Senior Review)
 
-> **Last updated:** 2026-03-01
+> **Last updated:** 2026-03-03
 >
 > **Strategy:** Build as a standard Laravel 12 web app first. Get core features working and tested against a real ZKTeco K40 device. Wrap in NativePHP for desktop distribution as a **separate final phase** — all NativePHP-specific code is isolated and deferred.
 
@@ -50,7 +50,7 @@ The project is scaffolded from the Laravel 12 Vue starter kit. These are already
 | Styling         | **Tailwind CSS v4**               | Already installed via Vite plugin.                            |
 | UI Components   | **shadcn-vue (reka-ui)**          | Already installed. 24+ components available.                  |
 | Route Gen       | **Wayfinder**                     | Already installed. TypeScript route functions.                |
-| Device SDK      | `mehedijaman/laravel-zkteco`      | To install. PHP wrapper for ZKTeco TCP protocol.              |
+| Device SDK      | `mehedijaman/laravel-zkteco`      | Installed (dev-main for L12). Wrapped by `ZktecoTcp` for TCP. |
 | HTTP Client     | Laravel HTTP (Guzzle)             | Built-in. Cloud API communication.                            |
 | Queue           | SQLite-backed (`database` driver) | Already configured. Jobs persist across restarts.             |
 | Auth            | **Fortify + Spatie Permission**   | Already installed. NOT used for setup wizard.                 |
@@ -113,6 +113,7 @@ device_configs
 ├── name (string — "Main Entrance")
 ├── ip_address (string)
 ├── port (integer, default 4370)
+├── protocol (string, default 'tcp' — 'tcp' or 'udp')
 ├── is_active (boolean, default true)
 ├── last_connected_at (timestamp, nullable)
 ├── last_poll_at (timestamp, nullable)
@@ -258,7 +259,8 @@ app/
 │   ├── StoreCloudServerRequest.php
 │   └── TestDeviceConnectionRequest.php
 ├── Services/
-│   ├── DeviceService.php             — ZKTeco device communication
+│   ├── DeviceService.php             — ZKTeco device communication (TCP/UDP factory)
+│   ├── ZktecoTcp.php                 — TCP socket adapter for LaravelZkteco
 │   ├── CloudApiService.php           — Cloud API HTTP client
 │   ├── ConnectivityService.php       — Internet & cloud reachability checks
 │   ├── EmployeeSyncService.php       — Bi-directional employee sync logic
@@ -368,6 +370,8 @@ class EnsureSetupComplete
 ## 7. DeviceService — ZKTeco Communication
 
 This is the core service. Wraps `mehedijaman/laravel-zkteco` with error handling and retry logic.
+
+The upstream package hardcodes UDP sockets, but the K40 is TCP-only. `ZktecoTcp` extends `LaravelZkteco` with proper TCP framing (8-byte header: `\x50\x50\x82\x7d` + LE payload length). `DeviceService` uses a factory method to instantiate the correct adapter based on `DeviceConfig.protocol`.
 
 ```php
 class DeviceService
@@ -643,19 +647,23 @@ Use existing `AppLayout.vue` for all authenticated/main pages. Create `SetupLayo
 
 ## 15. Development Phases (Revised for Speed)
 
-### Phase 1 — Models, Migrations, DeviceService (2-3 days)
+### Phase 1 — Models, Migrations, DeviceService (2-3 days) ✅ COMPLETE
 
 > Get the data layer and device communication working. Prove the ZKTeco connection.
 
-- [ ] Enable SQLite WAL mode in `config/database.php`
-- [ ] Install `mehedijaman/laravel-zkteco` package
-- [ ] Create migrations: `device_configs`, `employees`, `attendance_logs`, `cloud_servers`, `sync_queue`, `sync_logs`, `app_settings`
-- [ ] Create models with factories: `DeviceConfig`, `Employee`, `AttendanceLog`, `CloudServer`, `SyncQueue`, `SyncLog`, `AppSetting`
-- [ ] Create enums: `PunchType`, `SyncDirection`, `SyncStatus`
-- [ ] Build `DeviceService` — connect, test, fetch users, fetch attendance
-- [ ] Create `PollDevices` artisan command for manual testing
-- [ ] Write Pest tests for `DeviceService` against real device
-- [ ] Run `vendor/bin/pint --dirty --format agent`
+- [x] Enable SQLite WAL mode in `config/database.php`
+- [x] Install `mehedijaman/laravel-zkteco` package (dev-main for Laravel 12)
+- [x] Create migrations: `device_configs`, `employees`, `attendance_logs`, `cloud_servers`, `sync_queue`, `sync_logs`, `app_settings`
+- [x] Create models with factories: `DeviceConfig`, `Employee`, `AttendanceLog`, `CloudServer`, `SyncQueue`, `SyncLog`, `AppSetting`
+- [x] Create enums: `PunchType`, `SyncDirection`, `SyncStatus`
+- [x] Build `DeviceService` — connect, test, fetch users, fetch attendance
+- [x] Build `ZktecoTcp` — TCP socket adapter (K40 is TCP-only, package defaults to UDP)
+- [x] Add `protocol` column to `device_configs` (default 'tcp')
+- [x] Create `PollDevices` artisan command for manual testing
+- [x] Create `TestDeviceConnection` artisan command with `--debug` and `--protocol` options
+- [x] Write Pest tests for `DeviceService` against real device
+- [x] Run `vendor/bin/pint --dirty --format agent`
+- [x] Verified: 84 tests passing, real K40 connected via TCP (5 users, 48 attendance records pulled)
 
 ### Phase 2 — Setup Wizard + Core UI (3-4 days)
 

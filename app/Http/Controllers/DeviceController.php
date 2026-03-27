@@ -22,7 +22,7 @@ class DeviceController extends Controller
         $devices = DeviceConfig::query()
             ->withCount('attendanceLogs')
             ->get()
-            ->map(fn(DeviceConfig $device) => [
+            ->map(fn (DeviceConfig $device) => [
                 'id' => $device->id,
                 'name' => $device->name,
                 'ip_address' => $device->ip_address,
@@ -53,7 +53,7 @@ class DeviceController extends Controller
             ->latest('timestamp')
             ->limit(50)
             ->get()
-            ->map(fn(AttendanceLog $log) => [
+            ->map(fn (AttendanceLog $log) => [
                 'id' => $log->id,
                 'employee_name' => $log->employee?->name ?? "UID {$log->device_uid}",
                 'employee_code' => $log->employee?->employee_code,
@@ -132,7 +132,7 @@ class DeviceController extends Controller
         if ($device->isRealtime()) {
             return response()->json([
                 'success' => true,
-                'message' => 'This device uses real-time mode. Start the listener with: php artisan devices:listen --device=' . $device->id,
+                'message' => 'This device uses real-time mode. Start the listener with: php artisan devices:listen --device='.$device->id,
             ]);
         }
 

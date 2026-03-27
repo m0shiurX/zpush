@@ -236,13 +236,21 @@ class DeviceService
     {
         $this->ensureConnected($device);
 
-        $this->zk->getRealTimeLogs(function (array $event) use ($device, $onEvent) {
-            $result = $this->handleRealtimeEvent($event, $device);
+        try {
+            $this->zk->getRealTimeLogs(function (array $event) use ($device, $onEvent) {
+                $result = $this->handleRealtimeEvent($event, $device);
 
-            if ($onEvent) {
-                $onEvent($result);
-            }
-        }, $timeout);
+                if ($onEvent) {
+                    $onEvent($result);
+                }
+            }, $timeout);
+        } finally {
+            // Always disconnect after a listen cycle. ZKTeco devices (especially
+            // K40 firmware) may close the TCP connection during event monitoring,
+            // leaving a stale socket. Starting each cycle with a fresh connection
+            // prevents "Broken pipe" errors on CMD_REG_EVENT re-registration.
+            $this->disconnect();
+        }
     }
 
     /**
@@ -386,6 +394,31 @@ class DeviceService
     }
 
     /**
+     * Sync the server's current date/time to the device.
+     *
+     * @return array{success: bool, device_time: string}
+     *
+     * @throws DeviceConnectionException
+     */
+    public function syncTime(DeviceConfig $device): array
+    {
+        $this->ensureConnected($device);
+
+        $serverTime = now()->format('Y-m-d H:i:s');
+
+        $this->zk->setTime($serverTime);
+
+        $deviceTime = $this->zk->getTime();
+
+        Log::info("Synced time on device [{$device->name}] to {$serverTime}. Device reports: {$deviceTime}.");
+
+        return [
+            'success' => true,
+            'device_time' => $deviceTime ?: $serverTime,
+        ];
+    }
+
+    /**
      * Ensure we have a live connection, connecting if necessary.
      *
      * @throws DeviceConnectionException
@@ -403,11 +436,12 @@ class DeviceService
     /**
      * Create the appropriate ZKTeco instance based on device protocol.
      */
-    private function createZkInstance(DeviceConfig $device): ZKTeco
+    private function createZkInstance(DeviceConfig $device, int $timeout = 10): ZKTeco
     {
         return new ZKTeco(
             host: $device->ip_address,
             port: $device->port,
+            timeout: $timeout,
             protocol: $device->isTcp() ? 'tcp' : 'udp',
         );
     }

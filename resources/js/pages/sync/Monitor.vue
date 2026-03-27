@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue';
-import { Head, router } from '@inertiajs/vue3';
+import { Head, router, usePoll } from '@inertiajs/vue3';
 import AppLayout from '@/layouts/AppLayout.vue';
 import StatusBadge from '@/components/StatusBadge.vue';
 import SyncProgress from '@/components/SyncProgress.vue';
@@ -70,6 +70,9 @@ const syncing = ref(false);
 const syncResult = ref<{ success: boolean; message: string } | null>(null);
 const showFilters = ref(hasActiveFilters());
 
+// Auto-refresh sync stats and logs every 10 seconds
+usePoll(10000, { only: ['stats', 'recentLogs'] });
+
 const filterDirection = ref(props.filters?.direction ?? '');
 const filterEntityType = ref(props.filters?.entity_type ?? '');
 const filterStatus = ref(props.filters?.status ?? '');
@@ -112,17 +115,19 @@ const handleTriggerSync = async () => {
     syncResult.value = null;
 
     try {
-        const { data } = await axios.post(triggerSync.url());
+        const { data } = await axios.post(triggerSync.url(), {}, { timeout: 120000 });
         syncResult.value = {
             success: data.success,
             message: data.message,
         };
-        // Reload the page data after dispatching
+        // Reload the page data after sync completes
         router.reload({ only: ['stats', 'recentLogs'] });
     } catch (error: any) {
         syncResult.value = {
             success: false,
-            message: error.response?.data?.message ?? 'Failed to trigger sync.',
+            message: error.code === 'ECONNABORTED'
+                ? 'Sync timed out — it may still be running in the background.'
+                : error.response?.data?.message ?? 'Failed to trigger sync.',
         };
     } finally {
         syncing.value = false;

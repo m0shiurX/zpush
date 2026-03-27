@@ -92,7 +92,7 @@ test('trigger sync dispatches jobs', function () {
         ->assertOk()
         ->assertJson([
             'success' => true,
-            'message' => 'Sync jobs dispatched.',
+            'message' => 'Sync completed.',
         ]);
 });
 

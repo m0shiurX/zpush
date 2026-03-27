@@ -6,6 +6,7 @@ use Database\Factories\DeviceConfigFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\Cache;
 
 class DeviceConfig extends Model
 {
@@ -17,6 +18,7 @@ class DeviceConfig extends Model
         'ip_address',
         'port',
         'protocol',
+        'poll_method',
         'is_active',
         'last_connected_at',
         'last_poll_at',
@@ -48,6 +50,22 @@ class DeviceConfig extends Model
         return ($this->protocol ?? 'tcp') === 'tcp';
     }
 
+    /**
+     * Check if the device uses real-time listener mode.
+     */
+    public function isRealtime(): bool
+    {
+        return ($this->poll_method ?? 'realtime') === 'realtime';
+    }
+
+    /**
+     * Check if the device uses bulk polling mode.
+     */
+    public function isBulk(): bool
+    {
+        return $this->poll_method === 'bulk';
+    }
+
     // ==========================================
     // Relationships
     // ==========================================
@@ -73,10 +91,22 @@ class DeviceConfig extends Model
     // ==========================================
 
     /**
-     * Check if the device is currently connected (polled recently with no failures).
+     * Check if the listener command is actively connected to this device.
+     */
+    public function isListening(): bool
+    {
+        return Cache::has("device:{$this->id}:listening");
+    }
+
+    /**
+     * Check if the device is currently connected (listener active or polled recently with no failures).
      */
     public function isConnected(): bool
     {
+        if ($this->isListening()) {
+            return true;
+        }
+
         return $this->connection_failures === 0
             && $this->last_connected_at?->gt(now()->subMinutes(2));
     }

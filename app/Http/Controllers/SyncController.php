@@ -63,13 +63,15 @@ class SyncController extends Controller
      */
     public function triggerSync(): JsonResponse
     {
-        SyncAttendanceToCloud::dispatch();
-        SyncEmployeesFromCloud::dispatch(fullSync: false);
-        ProcessSyncQueue::dispatch();
+        set_time_limit(120);
+
+        SyncAttendanceToCloud::dispatchSync();
+        SyncEmployeesFromCloud::dispatchSync(fullSync: false);
+        ProcessSyncQueue::dispatchSync();
 
         return response()->json([
             'success' => true,
-            'message' => 'Sync jobs dispatched.',
+            'message' => 'Sync completed.',
         ]);
     }
 }

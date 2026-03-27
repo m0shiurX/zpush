@@ -28,7 +28,7 @@ test('device index renders with devices', function () {
         ->get(route('devices.index'))
         ->assertOk()
         ->assertInertia(
-            fn ($page) => $page
+            fn($page) => $page
                 ->component('devices/Index')
                 ->has('devices', 1)
                 ->where('devices.0.name', $device->name)
@@ -44,7 +44,7 @@ test('device index shows attendance log counts', function () {
         ->get(route('devices.index'))
         ->assertOk()
         ->assertInertia(
-            fn ($page) => $page
+            fn($page) => $page
                 ->where('devices.0.attendance_logs_count', 5)
         );
 });
@@ -61,7 +61,7 @@ test('device show renders with device details', function () {
         ->get(route('devices.show', $device))
         ->assertOk()
         ->assertInertia(
-            fn ($page) => $page
+            fn($page) => $page
                 ->component('devices/Show')
                 ->has('device')
                 ->where('device.name', $device->name)
@@ -83,7 +83,7 @@ test('device show includes recent attendance logs', function () {
         ->get(route('devices.show', $device))
         ->assertOk()
         ->assertInertia(
-            fn ($page) => $page
+            fn($page) => $page
                 ->has('recentLogs', 3)
         );
 });
@@ -134,13 +134,31 @@ test('test connection returns failure result', function () {
         ->assertJson(['success' => false, 'error' => 'Connection refused']);
 });
 
+test('test connection handles unexpected exception gracefully', function () {
+    $user = User::factory()->create();
+    $device = DeviceConfig::factory()->create();
+
+    $mock = $this->mock(DeviceService::class);
+    $mock->shouldReceive('testConnection')
+        ->once()
+        ->andThrow(new RuntimeException('Socket timed out'));
+
+    $this->actingAs($user)
+        ->postJson(route('devices.test', $device))
+        ->assertSuccessful()
+        ->assertJson([
+            'success' => false,
+            'error' => 'Connection timed out — the device may be busy or unreachable.',
+        ]);
+});
+
 // ==========================================
 // Poll
 // ==========================================
 
 test('poll device returns attendance results', function () {
     $user = User::factory()->create();
-    $device = DeviceConfig::factory()->create();
+    $device = DeviceConfig::factory()->bulk()->create();
 
     $mock = $this->mock(DeviceService::class);
     $mock->shouldReceive('syncUsersFromDevice')
@@ -160,6 +178,19 @@ test('poll device returns attendance results', function () {
             'duplicates' => 5,
             'users_synced' => 1,
         ]);
+});
+
+test('poll realtime device returns listener message', function () {
+    $user = User::factory()->create();
+    $device = DeviceConfig::factory()->create(['poll_method' => 'realtime']);
+
+    $this->actingAs($user)
+        ->postJson(route('devices.poll', $device))
+        ->assertSuccessful()
+        ->assertJson([
+            'success' => true,
+        ])
+        ->assertJsonFragment(['message' => 'This device uses real-time mode. Start the listener with: php artisan devices:listen --device=' . $device->id]);
 });
 
 // ==========================================
@@ -188,6 +219,17 @@ test('device can be toggled active', function () {
     expect($device->fresh()->is_active)->toBeTrue();
 });
 
+test('device poll_method can be updated', function () {
+    $user = User::factory()->create();
+    $device = DeviceConfig::factory()->create(['poll_method' => 'realtime']);
+
+    $this->actingAs($user)
+        ->patch(route('devices.update', $device), ['poll_method' => 'bulk'])
+        ->assertRedirect();
+
+    expect($device->fresh()->poll_method)->toBe('bulk');
+});
+
 // ==========================================
 // Clear Device Attendance
 // ==========================================
@@ -200,7 +242,7 @@ test('clear attendance clears device and local records', function () {
     $mock = $this->mock(DeviceService::class);
     $mock->shouldReceive('clearDeviceAttendance')
         ->once()
-        ->with(Mockery::on(fn ($d) => $d->id === $device->id))
+        ->with(Mockery::on(fn($d) => $d->id === $device->id))
         ->andReturn(true);
     $mock->shouldReceive('disconnect')->once();
 
@@ -303,7 +345,7 @@ test('clear device users removes all users from device', function () {
     $mock = $this->mock(DeviceService::class);
     $mock->shouldReceive('removeAllUsersFromDevice')
         ->once()
-        ->with(Mockery::on(fn ($d) => $d->id === $device->id))
+        ->with(Mockery::on(fn($d) => $d->id === $device->id))
         ->andReturn(5);
     $mock->shouldReceive('disconnect')->once();
 
@@ -340,6 +382,56 @@ test('clear device users requires authentication', function () {
 });
 
 // ==========================================
+// Sync Time
+// ==========================================
+
+test('sync time sets device time and returns success', function () {
+    $user = User::factory()->create();
+    $device = DeviceConfig::factory()->create();
+
+    $mock = $this->mock(DeviceService::class);
+    $mock->shouldReceive('syncTime')
+        ->once()
+        ->with(Mockery::on(fn($d) => $d->id === $device->id))
+        ->andReturn([
+            'success' => true,
+            'device_time' => '2026-03-27 12:00:00',
+        ]);
+    $mock->shouldReceive('disconnect')->once();
+
+    $this->actingAs($user)
+        ->postJson(route('devices.sync-time', $device))
+        ->assertSuccessful()
+        ->assertJson([
+            'success' => true,
+            'device_time' => '2026-03-27 12:00:00',
+        ]);
+});
+
+test('sync time returns error on connection failure', function () {
+    $user = User::factory()->create();
+    $device = DeviceConfig::factory()->create();
+
+    $mock = $this->mock(DeviceService::class);
+    $mock->shouldReceive('syncTime')
+        ->once()
+        ->andThrow(new DeviceConnectionException($device, 'Connection refused'));
+    $mock->shouldReceive('disconnect')->once();
+
+    $this->actingAs($user)
+        ->postJson(route('devices.sync-time', $device))
+        ->assertStatus(500)
+        ->assertJson(['success' => false]);
+});
+
+test('sync time requires authentication', function () {
+    $device = DeviceConfig::factory()->create();
+
+    $this->postJson(route('devices.sync-time', $device))
+        ->assertUnauthorized();
+});
+
+// ==========================================
 // Setup incomplete redirect
 // ==========================================
 
@@ -350,4 +442,137 @@ test('device index redirects when setup not complete', function () {
     $this->actingAs($user)
         ->get(route('devices.index'))
         ->assertRedirect(route('setup.welcome'));
+});
+
+// ==========================================
+// Store
+// ==========================================
+
+test('store creates a new device and redirects', function () {
+    $user = User::factory()->create();
+
+    $this->actingAs($user)
+        ->post(route('devices.store'), [
+            'name' => 'Front Door K40',
+            'ip_address' => '192.168.1.100',
+            'port' => 4370,
+            'protocol' => 'tcp',
+            'poll_method' => 'realtime',
+        ])
+        ->assertRedirect(route('devices.index'));
+
+    expect(DeviceConfig::where('ip_address', '192.168.1.100')->exists())->toBeTrue();
+});
+
+test('store validates required fields', function () {
+    $user = User::factory()->create();
+
+    $this->actingAs($user)
+        ->post(route('devices.store'), [])
+        ->assertSessionHasErrors(['name', 'ip_address', 'port', 'protocol', 'poll_method']);
+});
+
+test('store validates ip address format', function () {
+    $user = User::factory()->create();
+
+    $this->actingAs($user)
+        ->post(route('devices.store'), [
+            'name' => 'Test',
+            'ip_address' => 'not-an-ip',
+            'port' => 4370,
+            'protocol' => 'tcp',
+            'poll_method' => 'realtime',
+        ])
+        ->assertSessionHasErrors(['ip_address']);
+});
+
+test('store validates port range', function () {
+    $user = User::factory()->create();
+
+    $this->actingAs($user)
+        ->post(route('devices.store'), [
+            'name' => 'Test',
+            'ip_address' => '192.168.1.1',
+            'port' => 99999,
+            'protocol' => 'tcp',
+            'poll_method' => 'realtime',
+        ])
+        ->assertSessionHasErrors(['port']);
+});
+
+test('store validates protocol values', function () {
+    $user = User::factory()->create();
+
+    $this->actingAs($user)
+        ->post(route('devices.store'), [
+            'name' => 'Test',
+            'ip_address' => '192.168.1.1',
+            'port' => 4370,
+            'protocol' => 'invalid',
+            'poll_method' => 'realtime',
+        ])
+        ->assertSessionHasErrors(['protocol']);
+});
+
+test('store validates poll_method values', function () {
+    $user = User::factory()->create();
+
+    $this->actingAs($user)
+        ->post(route('devices.store'), [
+            'name' => 'Test',
+            'ip_address' => '192.168.1.1',
+            'port' => 4370,
+            'protocol' => 'tcp',
+            'poll_method' => 'invalid',
+        ])
+        ->assertSessionHasErrors(['poll_method']);
+});
+
+test('store requires authentication', function () {
+    $this->post(route('devices.store'), [
+        'name' => 'Test',
+        'ip_address' => '192.168.1.1',
+        'port' => 4370,
+        'protocol' => 'tcp',
+        'poll_method' => 'realtime',
+    ])->assertRedirect(route('login'));
+});
+
+// ==========================================
+// Destroy
+// ==========================================
+
+test('destroy deletes device and its attendance logs', function () {
+    $user = User::factory()->create();
+    $device = DeviceConfig::factory()->create();
+    AttendanceLog::factory()->count(5)->create(['device_id' => $device->id]);
+
+    $this->actingAs($user)
+        ->delete(route('devices.destroy', $device))
+        ->assertRedirect(route('devices.index'));
+
+    expect(DeviceConfig::find($device->id))->toBeNull();
+    expect(AttendanceLog::where('device_id', $device->id)->count())->toBe(0);
+});
+
+test('destroy does not affect other device attendance logs', function () {
+    $user = User::factory()->create();
+    $device1 = DeviceConfig::factory()->create();
+    $device2 = DeviceConfig::factory()->create();
+    AttendanceLog::factory()->count(3)->create(['device_id' => $device1->id]);
+    AttendanceLog::factory()->count(4)->create(['device_id' => $device2->id]);
+
+    $this->actingAs($user)
+        ->delete(route('devices.destroy', $device1))
+        ->assertRedirect(route('devices.index'));
+
+    expect(DeviceConfig::find($device1->id))->toBeNull();
+    expect(AttendanceLog::where('device_id', $device2->id)->count())->toBe(4);
+});
+
+test('destroy requires authentication', function () {
+    $device = DeviceConfig::factory()->create();
+
+    $this->delete(route('devices.destroy', $device))
+        ->assertRedirect(route('login'));
 });

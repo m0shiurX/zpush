@@ -10,10 +10,13 @@ use Illuminate\Support\Facades\Route;
 Route::middleware(['auth', 'verified', 'setup.complete'])->group(function () {
     // Devices
     Route::get('devices', [DeviceController::class, 'index'])->name('devices.index');
+    Route::post('devices', [DeviceController::class, 'store'])->name('devices.store');
     Route::get('devices/{device}', [DeviceController::class, 'show'])->name('devices.show');
     Route::patch('devices/{device}', [DeviceController::class, 'update'])->name('devices.update');
+    Route::delete('devices/{device}', [DeviceController::class, 'destroy'])->name('devices.destroy');
     Route::post('devices/{device}/test', [DeviceController::class, 'test'])->name('devices.test');
     Route::post('devices/{device}/poll', [DeviceController::class, 'poll'])->name('devices.poll');
+    Route::post('devices/{device}/sync-time', [DeviceController::class, 'syncTime'])->name('devices.sync-time');
     Route::delete('devices/{device}/clear-attendance', [DeviceController::class, 'clearAttendance'])->name('devices.clear-attendance');
     Route::delete('devices/{device}/clear-local-attendance', [DeviceController::class, 'clearLocalAttendance'])->name('devices.clear-local-attendance');
     Route::delete('devices/{device}/clear-device-users', [DeviceController::class, 'clearDeviceUsers'])->name('devices.clear-device-users');

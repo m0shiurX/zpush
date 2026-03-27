@@ -91,3 +91,23 @@ test('has many attendance logs', function () {
 
     expect($device->attendanceLogs)->toHaveCount(3);
 });
+
+test('isRealtime returns true by default', function () {
+    $device = DeviceConfig::factory()->create();
+
+    expect($device->isRealtime())->toBeTrue()
+        ->and($device->isBulk())->toBeFalse();
+});
+
+test('isBulk returns true for bulk devices', function () {
+    $device = DeviceConfig::factory()->bulk()->create();
+
+    expect($device->isBulk())->toBeTrue()
+        ->and($device->isRealtime())->toBeFalse();
+});
+
+test('bulk factory state sets poll_method', function () {
+    $device = DeviceConfig::factory()->bulk()->create();
+
+    expect($device->poll_method)->toBe('bulk');
+});

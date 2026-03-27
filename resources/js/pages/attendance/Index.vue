@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Head, router } from '@inertiajs/vue3';
+import { Head, router, usePoll } from '@inertiajs/vue3';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -41,6 +41,9 @@ const props = defineProps<{
     logs: PaginatedData<AttendanceEntry>;
     filters: Filters;
 }>();
+
+// Auto-refresh attendance data every 15 seconds
+usePoll(15000, { only: ['logs'] });
 
 const search = ref(props.filters.search ?? '');
 const dateFrom = ref(props.filters.date_from ?? '');

@@ -20,10 +20,11 @@ class DeviceConfigFactory extends Factory
     public function definition(): array
     {
         return [
-            'name' => fake()->randomElement(['Main Entrance', 'Back Door', 'Floor 2', 'Server Room', 'Lobby']).' '.fake()->numberBetween(1, 9),
+            'name' => fake()->randomElement(['Main Entrance', 'Back Door', 'Floor 2', 'Server Room', 'Lobby']) . ' ' . fake()->numberBetween(1, 9),
             'ip_address' => fake()->localIpv4(),
             'port' => 4370,
             'protocol' => 'tcp',
+            'poll_method' => 'realtime',
             'is_active' => true,
             'last_connected_at' => null,
             'last_poll_at' => null,
@@ -36,7 +37,7 @@ class DeviceConfigFactory extends Factory
      */
     public function connected(): static
     {
-        return $this->state(fn (array $attributes) => [
+        return $this->state(fn(array $attributes) => [
             'last_connected_at' => now(),
             'last_poll_at' => now(),
             'connection_failures' => 0,
@@ -48,7 +49,7 @@ class DeviceConfigFactory extends Factory
      */
     public function failing(): static
     {
-        return $this->state(fn (array $attributes) => [
+        return $this->state(fn(array $attributes) => [
             'last_connected_at' => now()->subMinutes(10),
             'connection_failures' => fake()->numberBetween(1, 5),
         ]);
@@ -59,8 +60,18 @@ class DeviceConfigFactory extends Factory
      */
     public function inactive(): static
     {
-        return $this->state(fn (array $attributes) => [
+        return $this->state(fn(array $attributes) => [
             'is_active' => false,
+        ]);
+    }
+
+    /**
+     * Indicate the device uses bulk polling mode.
+     */
+    public function bulk(): static
+    {
+        return $this->state(fn(array $attributes) => [
+            'poll_method' => 'bulk',
         ]);
     }
 }

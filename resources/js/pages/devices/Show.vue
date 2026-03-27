@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { Head, Link, router } from '@inertiajs/vue3';
+import { Head, Link, router, usePoll } from '@inertiajs/vue3';
 import AppLayout from '@/layouts/AppLayout.vue';
 import StatusBadge from '@/components/StatusBadge.vue';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { test, poll, clearAttendance, clearLocalAttendance, clearDeviceUsers } from '@/actions/App/Http/Controllers/DeviceController';
+import { test, poll, syncTime, clearAttendance, clearLocalAttendance, clearDeviceUsers } from '@/actions/App/Http/Controllers/DeviceController';
 import { index as devicesIndex } from '@/routes/devices';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ref } from 'vue';
@@ -17,8 +17,10 @@ interface DeviceDetail {
     ip_address: string;
     port: number;
     protocol: string;
+    poll_method: string;
     is_active: boolean;
     is_connected: boolean;
+    is_listening: boolean;
     last_connected_at: string | null;
     last_poll_at: string | null;
     connection_failures: number;
@@ -40,8 +42,12 @@ const props = defineProps<{
     recentLogs: AttendanceEntry[];
 }>();
 
+// Auto-refresh device data and recent logs every 10 seconds
+usePoll(10000, { only: ['device', 'recentLogs'] });
+
 const testing = ref(false);
 const polling = ref(false);
+const syncingTime = ref(false);
 const clearingDevice = ref(false);
 const clearingLocal = ref(false);
 const clearingUsers = ref(false);
@@ -54,14 +60,18 @@ async function handleTest() {
     resultMessage.value = '';
 
     try {
-        const { data } = await axios.post(test.url({ device: props.device.id }));
+        const { data } = await axios.post(test.url({ device: props.device.id }), {}, { timeout: 15000 });
         resultSuccess.value = data.success;
-        resultMessage.value = data.success
-            ? `Connected — ${data.device_name ?? 'Device'} (SN: ${data.serial_number ?? 'N/A'}, FW: ${data.firmware ?? 'N/A'})`
-            : `Failed: ${data.error}`;
+        resultMessage.value = data.listening
+            ? 'Device is connected — listener is active'
+            : data.success
+                ? `Connected — ${data.device_name ?? 'Device'} (SN: ${data.serial_number ?? 'N/A'}, FW: ${data.firmware ?? 'N/A'})`
+                : `Failed: ${data.error}`;
     } catch (error: any) {
         resultSuccess.value = false;
-        resultMessage.value = error.response?.data?.error ?? 'Network error';
+        resultMessage.value = error.code === 'ECONNABORTED'
+            ? 'Connection timed out — device may be busy or unreachable'
+            : error.response?.data?.error ?? 'Network error';
     } finally {
         testing.value = false;
     }
@@ -72,19 +82,43 @@ async function handlePoll() {
     resultMessage.value = '';
 
     try {
-        const { data } = await axios.post(poll.url({ device: props.device.id }));
+        const { data } = await axios.post(poll.url({ device: props.device.id }), {}, { timeout: 30000 });
         resultSuccess.value = data.success;
-        resultMessage.value = data.success
-            ? `Synced: ${data.new} new, ${data.duplicates} duplicates, ${data.users_synced} users synced`
-            : `Error: ${data.error}`;
-        if (data.success) {
+        resultMessage.value = data.listening
+            ? 'Attendance is being captured in real-time by the listener'
+            : data.success
+                ? `Synced: ${data.new} new, ${data.duplicates} duplicates, ${data.users_synced} users synced`
+                : `Error: ${data.error}`;
+        if (data.success && !data.listening) {
             router.reload({ only: ['recentLogs', 'device'] });
         }
     } catch (error: any) {
         resultSuccess.value = false;
-        resultMessage.value = error.response?.data?.error ?? 'Network error';
+        resultMessage.value = error.code === 'ECONNABORTED'
+            ? 'Sync timed out — device may be busy or unreachable'
+            : error.response?.data?.error ?? 'Network error';
     } finally {
         polling.value = false;
+    }
+}
+
+async function handleSyncTime() {
+    syncingTime.value = true;
+    resultMessage.value = '';
+
+    try {
+        const { data } = await axios.post(syncTime.url({ device: props.device.id }), {}, { timeout: 15000 });
+        resultSuccess.value = data.success;
+        resultMessage.value = data.success
+            ? `Device time synced — now set to ${data.device_time}`
+            : `Error: ${data.error}`;
+    } catch (error: any) {
+        resultSuccess.value = false;
+        resultMessage.value = error.code === 'ECONNABORTED'
+            ? 'Timed out — device may be busy or unreachable'
+            : error.response?.data?.error ?? 'Network error';
+    } finally {
+        syncingTime.value = false;
     }
 }
 
@@ -190,12 +224,13 @@ function timeAgo(iso: string | null): string {
                     <div>
                         <CardTitle class="text-xl">{{ device.name }}</CardTitle>
                         <p class="text-sm text-muted-foreground mt-1">
-                            {{ device.ip_address }}:{{ device.port }} ({{ device.protocol.toUpperCase() }})
+                            {{ device.ip_address }}:{{ device.port }} ({{ device.protocol.toUpperCase() }}) &middot;
+                            {{ device.poll_method === 'realtime' ? 'Real-time' : 'Bulk Polling' }}
                         </p>
                     </div>
                     <StatusBadge
-                        :status="device.is_connected ? 'success' : device.connection_failures > 0 ? 'error' : 'neutral'"
-                        :label="device.is_connected ? 'Connected' : device.connection_failures > 0 ? 'Failed' : 'Unknown'" />
+                        :status="device.is_listening ? 'success' : device.is_connected ? 'success' : device.connection_failures > 0 ? 'error' : 'neutral'"
+                        :label="device.is_listening ? 'Listening' : device.is_connected ? 'Connected' : device.connection_failures > 0 ? 'Failed' : 'Unknown'" />
                 </CardHeader>
                 <CardContent>
                     <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4 text-sm">
@@ -231,6 +266,9 @@ function timeAgo(iso: string | null): string {
                         </Button>
                         <Button :disabled="polling" @click="handlePoll">
                             {{ polling ? 'Syncing...' : 'Sync Device' }}
+                        </Button>
+                        <Button variant="outline" :disabled="syncingTime" @click="handleSyncTime">
+                            {{ syncingTime ? 'Syncing...' : 'Sync Time' }}
                         </Button>
                         <Button variant="destructive" :disabled="clearingDevice" @click="showClearConfirm = 'device'">
                             <Trash2 class="mr-1 h-4 w-4" />

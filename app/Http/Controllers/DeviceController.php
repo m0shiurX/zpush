@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\StoreDeviceRequest;
 use App\Models\AttendanceLog;
 use App\Models\DeviceConfig;
 use App\Services\DeviceService;
@@ -21,14 +22,16 @@ class DeviceController extends Controller
         $devices = DeviceConfig::query()
             ->withCount('attendanceLogs')
             ->get()
-            ->map(fn (DeviceConfig $device) => [
+            ->map(fn(DeviceConfig $device) => [
                 'id' => $device->id,
                 'name' => $device->name,
                 'ip_address' => $device->ip_address,
                 'port' => $device->port,
                 'protocol' => $device->protocol,
+                'poll_method' => $device->poll_method ?? 'realtime',
                 'is_active' => $device->is_active,
                 'is_connected' => $device->isConnected(),
+                'is_listening' => $device->isListening(),
                 'last_connected_at' => $device->last_connected_at?->toISOString(),
                 'last_poll_at' => $device->last_poll_at?->toISOString(),
                 'connection_failures' => $device->connection_failures,
@@ -50,7 +53,7 @@ class DeviceController extends Controller
             ->latest('timestamp')
             ->limit(50)
             ->get()
-            ->map(fn (AttendanceLog $log) => [
+            ->map(fn(AttendanceLog $log) => [
                 'id' => $log->id,
                 'employee_name' => $log->employee?->name ?? "UID {$log->device_uid}",
                 'employee_code' => $log->employee?->employee_code,
@@ -67,8 +70,10 @@ class DeviceController extends Controller
                 'ip_address' => $device->ip_address,
                 'port' => $device->port,
                 'protocol' => $device->protocol,
+                'poll_method' => $device->poll_method ?? 'realtime',
                 'is_active' => $device->is_active,
                 'is_connected' => $device->isConnected(),
+                'is_listening' => $device->isListening(),
                 'last_connected_at' => $device->last_connected_at?->toISOString(),
                 'last_poll_at' => $device->last_poll_at?->toISOString(),
                 'connection_failures' => $device->connection_failures,
@@ -83,9 +88,32 @@ class DeviceController extends Controller
      */
     public function test(DeviceConfig $device, DeviceService $service): JsonResponse
     {
-        $result = $service->testConnection($device);
+        if ($device->isListening()) {
+            return response()->json([
+                'success' => true,
+                'serial_number' => null,
+                'device_name' => $device->name,
+                'firmware' => null,
+                'error' => null,
+                'listening' => true,
+            ]);
+        }
 
-        return response()->json($result);
+        try {
+            set_time_limit(15);
+
+            $result = $service->testConnection($device);
+
+            return response()->json($result);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'success' => false,
+                'serial_number' => null,
+                'device_name' => null,
+                'firmware' => null,
+                'error' => 'Connection timed out — the device may be busy or unreachable.',
+            ]);
+        }
     }
 
     /**
@@ -93,7 +121,24 @@ class DeviceController extends Controller
      */
     public function poll(DeviceConfig $device, DeviceService $service): JsonResponse
     {
+        if ($device->isListening()) {
+            return response()->json([
+                'success' => true,
+                'listening' => true,
+                'message' => 'Attendance is being captured in real-time by the listener.',
+            ]);
+        }
+
+        if ($device->isRealtime()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'This device uses real-time mode. Start the listener with: php artisan devices:listen --device=' . $device->id,
+            ]);
+        }
+
         try {
+            set_time_limit(30);
+
             $users = $service->syncUsersFromDevice($device);
             $result = $service->pollAttendance($device);
 
@@ -175,16 +220,66 @@ class DeviceController extends Controller
     }
 
     /**
+     * Sync the server's date/time to the device (AJAX).
+     */
+    public function syncTime(DeviceConfig $device, DeviceService $service): JsonResponse
+    {
+        if ($device->isListening()) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Cannot sync time while the listener is connected. Stop the listener first.',
+            ]);
+        }
+
+        try {
+            set_time_limit(15);
+
+            $result = $service->syncTime($device);
+
+            return response()->json($result);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'success' => false,
+                'error' => $e->getMessage(),
+            ], 500);
+        } finally {
+            $service->disconnect();
+        }
+    }
+
+    /**
      * Toggle device active/inactive status.
      */
     public function update(Request $request, DeviceConfig $device): RedirectResponse
     {
         $validated = $request->validate([
-            'is_active' => ['required', 'boolean'],
+            'is_active' => ['sometimes', 'boolean'],
+            'poll_method' => ['sometimes', 'string', 'in:realtime,bulk'],
         ]);
 
         $device->update($validated);
 
         return back();
+    }
+
+    /**
+     * Store a new device.
+     */
+    public function store(StoreDeviceRequest $request): RedirectResponse
+    {
+        DeviceConfig::create($request->validated());
+
+        return redirect()->route('devices.index');
+    }
+
+    /**
+     * Delete a device and its local attendance records.
+     */
+    public function destroy(DeviceConfig $device): RedirectResponse
+    {
+        AttendanceLog::where('device_id', $device->id)->delete();
+        $device->delete();
+
+        return redirect()->route('devices.index');
     }
 }

@@ -19,10 +19,10 @@ class PollDevices extends Command
     {
         $devices = $this->option('device')
             ? DeviceConfig::where('id', $this->option('device'))->where('is_active', true)->get()
-            : DeviceConfig::active()->get();
+            : DeviceConfig::active()->where('poll_method', 'bulk')->get();
 
         if ($devices->isEmpty()) {
-            $this->warn('No active devices found.');
+            $this->warn('No active bulk-polling devices found.');
 
             return self::SUCCESS;
         }

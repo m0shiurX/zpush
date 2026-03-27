@@ -2,13 +2,14 @@
 
 namespace App\Models;
 
+use Database\Factories\CloudServerFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class CloudServer extends Model
 {
-    /** @use HasFactory<\Database\Factories\CloudServerFactory> */
+    /** @use HasFactory<CloudServerFactory> */
     use HasFactory;
 
     protected $fillable = [

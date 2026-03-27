@@ -138,7 +138,7 @@ class RoleAndPermissionSeeder extends Seeder
             } elseif ($roleName === 'User') {
                 // User gets only specific allowed permissions
                 $permissions = $allPermissions->filter(
-                    fn($p) => in_array($p->name, $this->userAllowedPermissions)
+                    fn ($p) => in_array($p->name, $this->userAllowedPermissions)
                 );
                 $role->syncPermissions($permissions);
                 $this->command->info("  Role: {$roleName} with {$permissions->count()} permissions");

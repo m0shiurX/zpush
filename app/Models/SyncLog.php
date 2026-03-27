@@ -4,13 +4,15 @@ namespace App\Models;
 
 use App\Enums\SyncDirection;
 use App\Enums\SyncStatus;
+use Carbon\Carbon;
+use Database\Factories\SyncLogFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class SyncLog extends Model
 {
-    /** @use HasFactory<\Database\Factories\SyncLogFactory> */
+    /** @use HasFactory<SyncLogFactory> */
     use HasFactory;
 
     public $timestamps = false;
@@ -72,7 +74,7 @@ class SyncLog extends Model
     /**
      * Create a sync log entry for a completed operation.
      *
-     * @param  array{cloud_server_id?: int, device_id?: int, direction: SyncDirection, entity_type: string, records_affected: int, started_at: \Carbon\Carbon}  $attributes
+     * @param  array{cloud_server_id?: int, device_id?: int, direction: SyncDirection, entity_type: string, records_affected: int, started_at: Carbon}  $attributes
      */
     public static function logSuccess(array $attributes): static
     {
@@ -87,7 +89,7 @@ class SyncLog extends Model
     /**
      * Create a sync log entry for a failed operation.
      *
-     * @param  array{cloud_server_id?: int, device_id?: int, direction: SyncDirection, entity_type: string, records_affected: int, started_at: \Carbon\Carbon, error_message: string}  $attributes
+     * @param  array{cloud_server_id?: int, device_id?: int, direction: SyncDirection, entity_type: string, records_affected: int, started_at: Carbon, error_message: string}  $attributes
      */
     public static function logFailure(array $attributes): static
     {

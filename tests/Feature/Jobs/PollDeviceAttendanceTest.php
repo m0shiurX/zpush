@@ -4,6 +4,7 @@ use App\Exceptions\DeviceConnectionException;
 use App\Jobs\PollDeviceAttendance;
 use App\Models\DeviceConfig;
 use App\Services\DeviceService;
+use Illuminate\Contracts\Queue\ShouldBeUnique;
 
 test('poll job processes all active devices', function () {
     $device1 = DeviceConfig::factory()->create(['is_active' => true]);
@@ -63,5 +64,5 @@ test('poll job has unique id based on device', function () {
 
 test('poll job implements ShouldBeUnique', function () {
     $job = new PollDeviceAttendance;
-    expect($job)->toBeInstanceOf(\Illuminate\Contracts\Queue\ShouldBeUnique::class);
+    expect($job)->toBeInstanceOf(ShouldBeUnique::class);
 });

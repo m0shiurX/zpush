@@ -5,6 +5,7 @@ namespace App\Jobs;
 use App\Enums\SyncDirection;
 use App\Models\AttendanceLog;
 use App\Models\CloudServer;
+use App\Models\Employee;
 use App\Models\SyncLog;
 use App\Services\AttendanceProcessorService;
 use App\Services\CloudApiService;
@@ -139,7 +140,7 @@ class SyncAttendanceToCloud implements ShouldBeUnique, ShouldQueue
             return;
         }
 
-        $employeeIds = \App\Models\Employee::query()
+        $employeeIds = Employee::query()
             ->whereIn('employee_code', $employeeCodes)
             ->pluck('id');
 

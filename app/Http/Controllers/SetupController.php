@@ -49,7 +49,7 @@ class SetupController extends Controller
     /**
      * Step 2 — Test device connection (AJAX).
      *
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public function testDevice(TestDeviceConnectionRequest $request, DeviceService $service)
     {

@@ -12,7 +12,7 @@ class EnsureSetupComplete
     /**
      * Redirect to the setup wizard if initial setup has not been completed.
      *
-     * @param  \Closure(\Illuminate\Http\Request): (\Symfony\Component\HttpFoundation\Response)  $next
+     * @param  Closure(Request): (Response)  $next
      */
     public function handle(Request $request, Closure $next): Response
     {

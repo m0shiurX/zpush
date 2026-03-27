@@ -54,12 +54,12 @@ class DebugAttendance extends Command
             return 0;
         }
 
-        $this->info('Found ' . count($records) . ' record(s):');
+        $this->info('Found '.count($records).' record(s):');
         $this->newLine();
 
         $this->table(
             ['#', 'UID', 'User ID', 'State', 'Timestamp', 'Type'],
-            collect($records)->map(fn($r, $i) => [
+            collect($records)->map(fn ($r, $i) => [
                 $i,
                 $r['uid'] ?? '-',
                 $r['user_id'] ?? '-',
@@ -78,10 +78,10 @@ class DebugAttendance extends Command
         if (empty($users)) {
             $this->warn('No users found on device.');
         } else {
-            $this->info('Found ' . count($users) . ' user(s):');
+            $this->info('Found '.count($users).' user(s):');
             $this->table(
                 ['UID', 'User ID', 'Name', 'Role', 'Card No'],
-                collect($users)->map(fn($u) => [
+                collect($users)->map(fn ($u) => [
                     $u['uid'] ?? '-',
                     $u['user_id'] ?? '-',
                     $u['name'] ?? '-',

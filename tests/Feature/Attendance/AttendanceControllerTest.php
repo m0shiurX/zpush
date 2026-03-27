@@ -33,7 +33,7 @@ test('attendance index renders with logs', function () {
         ->get(route('attendance.index'))
         ->assertOk()
         ->assertInertia(
-            fn($page) => $page
+            fn ($page) => $page
                 ->component('attendance/Index')
                 ->has('logs.data', 3)
         );
@@ -51,7 +51,7 @@ test('attendance index paginates results', function () {
         ->get(route('attendance.index'))
         ->assertOk()
         ->assertInertia(
-            fn($page) => $page
+            fn ($page) => $page
                 ->has('logs.data', 25)
                 ->where('logs.total', 30)
         );
@@ -74,7 +74,7 @@ test('attendance index filters by employee search', function () {
         ->get(route('attendance.index', ['search' => 'Alice']))
         ->assertOk()
         ->assertInertia(
-            fn($page) => $page
+            fn ($page) => $page
                 ->has('logs.data', 1)
                 ->where('logs.data.0.employee_name', 'Alice Smith')
         );
@@ -100,7 +100,7 @@ test('attendance index filters by date range', function () {
         ->get(route('attendance.index', ['date_from' => now()->toDateString()]))
         ->assertOk()
         ->assertInertia(
-            fn($page) => $page
+            fn ($page) => $page
                 ->has('logs.data', 1)
         );
 });
@@ -117,7 +117,7 @@ test('attendance index filters by punch type', function () {
         ->get(route('attendance.index', ['punch_type' => PunchType::CheckIn->value]))
         ->assertOk()
         ->assertInertia(
-            fn($page) => $page
+            fn ($page) => $page
                 ->has('logs.data', 1)
                 ->where('logs.data.0.punch_label', 'Check In')
         );
@@ -130,7 +130,7 @@ test('attendance index returns filter values', function () {
         ->get(route('attendance.index', ['search' => 'test', 'date_from' => '2025-01-01']))
         ->assertOk()
         ->assertInertia(
-            fn($page) => $page
+            fn ($page) => $page
                 ->where('filters.search', 'test')
                 ->where('filters.date_from', '2025-01-01')
         );

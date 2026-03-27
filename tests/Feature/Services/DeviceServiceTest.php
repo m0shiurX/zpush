@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\PunchType;
 use App\Exceptions\DeviceConnectionException;
 use App\Models\AttendanceLog;
 use App\Models\DeviceConfig;
@@ -231,7 +232,7 @@ test('handleRealtimeEvent maps punch type from state', function () {
         'device_ip' => '192.168.1.201',
     ], $this->device);
 
-    expect(AttendanceLog::first()->punch_type)->toBe(\App\Enums\PunchType::CheckOut);
+    expect(AttendanceLog::first()->punch_type)->toBe(PunchType::CheckOut);
 });
 
 test('listenForAttendance registers for real-time events', function () {
@@ -301,10 +302,10 @@ function simulateTestConnection(DeviceConfig $device, $mockZk): array
         $mockZk->disconnect();
 
         return $info;
-    } catch (\Throwable $e) {
+    } catch (Throwable $e) {
         try {
             $mockZk->disconnect();
-        } catch (\Throwable) {
+        } catch (Throwable) {
         }
 
         return [

@@ -240,7 +240,7 @@ test('forActiveServer throws when no active server exists', function () {
     $this->server->update(['is_active' => false]);
 
     CloudApiService::forActiveServer();
-})->throws(\RuntimeException::class, 'No active cloud server configured.');
+})->throws(RuntimeException::class, 'No active cloud server configured.');
 
 test('sends authorization header with api key', function () {
     Http::fake([

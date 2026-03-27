@@ -3,6 +3,7 @@
 use App\Models\AppSetting;
 use App\Models\CloudServer;
 use App\Models\DeviceConfig;
+use App\Models\User;
 use App\Services\DeviceService;
 use Illuminate\Support\Facades\Http;
 
@@ -410,7 +411,7 @@ test('finalizing setup sets app setting and redirects to dashboard', function ()
 // ==========================================
 
 test('dashboard redirects to setup when setup is not complete', function () {
-    $user = \App\Models\User::factory()->create();
+    $user = User::factory()->create();
     $this->actingAs($user);
 
     $response = $this->get(route('dashboard'));
@@ -421,7 +422,7 @@ test('dashboard redirects to setup when setup is not complete', function () {
 test('dashboard is accessible when setup is complete', function () {
     AppSetting::set('setup_completed', true);
 
-    $user = \App\Models\User::factory()->create();
+    $user = User::factory()->create();
     $this->actingAs($user);
 
     $response = $this->get(route('dashboard'));

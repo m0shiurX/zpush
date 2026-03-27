@@ -1,5 +1,6 @@
 <?php
 
+use App\Exceptions\DeviceConnectionException;
 use App\Models\AppSetting;
 use App\Models\AttendanceLog;
 use App\Models\DeviceConfig;
@@ -199,7 +200,7 @@ test('clear attendance clears device and local records', function () {
     $mock = $this->mock(DeviceService::class);
     $mock->shouldReceive('clearDeviceAttendance')
         ->once()
-        ->with(\Mockery::on(fn ($d) => $d->id === $device->id))
+        ->with(Mockery::on(fn ($d) => $d->id === $device->id))
         ->andReturn(true);
     $mock->shouldReceive('disconnect')->once();
 
@@ -221,7 +222,7 @@ test('clear attendance returns error when device fails', function () {
     $mock = $this->mock(DeviceService::class);
     $mock->shouldReceive('clearDeviceAttendance')
         ->once()
-        ->andThrow(new \App\Exceptions\DeviceConnectionException($device, 'Connection refused'));
+        ->andThrow(new DeviceConnectionException($device, 'Connection refused'));
     $mock->shouldReceive('disconnect')->once();
 
     $this->actingAs($user)
@@ -302,7 +303,7 @@ test('clear device users removes all users from device', function () {
     $mock = $this->mock(DeviceService::class);
     $mock->shouldReceive('removeAllUsersFromDevice')
         ->once()
-        ->with(\Mockery::on(fn ($d) => $d->id === $device->id))
+        ->with(Mockery::on(fn ($d) => $d->id === $device->id))
         ->andReturn(5);
     $mock->shouldReceive('disconnect')->once();
 
@@ -322,7 +323,7 @@ test('clear device users handles connection error', function () {
     $mock = $this->mock(DeviceService::class);
     $mock->shouldReceive('removeAllUsersFromDevice')
         ->once()
-        ->andThrow(new \App\Exceptions\DeviceConnectionException($device, 'Connection refused'));
+        ->andThrow(new DeviceConnectionException($device, 'Connection refused'));
     $mock->shouldReceive('disconnect')->once();
 
     $this->actingAs($user)

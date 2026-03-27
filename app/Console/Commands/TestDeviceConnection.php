@@ -147,7 +147,7 @@ class TestDeviceConnection extends Command
             return null;
         }
 
-        return hexdec($header['h2'] . $header['h1']);
+        return hexdec($header['h2'].$header['h1']);
     }
 
     private function ackLabel(int $code): string

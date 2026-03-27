@@ -4,12 +4,13 @@ namespace App\Models;
 
 use App\Enums\SyncDirection;
 use App\Enums\SyncStatus;
+use Database\Factories\SyncQueueFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class SyncQueue extends Model
 {
-    /** @use HasFactory<\Database\Factories\SyncQueueFactory> */
+    /** @use HasFactory<SyncQueueFactory> */
     use HasFactory;
 
     protected $table = 'sync_queue';

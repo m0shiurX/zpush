@@ -1,6 +1,8 @@
 <?php
 
 use App\Models\AppSetting;
+use App\Models\AttendanceLog;
+use App\Models\DeviceConfig;
 use App\Models\Employee;
 use App\Models\User;
 
@@ -24,7 +26,7 @@ test('employee index renders with employees', function () {
         ->get(route('employees.index'))
         ->assertOk()
         ->assertInertia(
-            fn($page) => $page
+            fn ($page) => $page
                 ->component('employees/Index')
                 ->has('employees.data', 3)
         );
@@ -38,7 +40,7 @@ test('employee index paginates results', function () {
         ->get(route('employees.index'))
         ->assertOk()
         ->assertInertia(
-            fn($page) => $page
+            fn ($page) => $page
                 ->has('employees.data', 25)
                 ->where('employees.total', 30)
         );
@@ -57,7 +59,7 @@ test('employee index filters by name search', function () {
         ->get(route('employees.index', ['search' => 'Alice']))
         ->assertOk()
         ->assertInertia(
-            fn($page) => $page
+            fn ($page) => $page
                 ->has('employees.data', 1)
                 ->where('employees.data.0.name', 'Alice Smith')
         );
@@ -72,7 +74,7 @@ test('employee index filters by employee code', function () {
         ->get(route('employees.index', ['search' => 'EMP-001']))
         ->assertOk()
         ->assertInertia(
-            fn($page) => $page
+            fn ($page) => $page
                 ->has('employees.data', 1)
         );
 });
@@ -86,7 +88,7 @@ test('employee index filters by active status', function () {
         ->get(route('employees.index', ['status' => 'active']))
         ->assertOk()
         ->assertInertia(
-            fn($page) => $page
+            fn ($page) => $page
                 ->has('employees.data', 3)
         );
 });
@@ -100,7 +102,7 @@ test('employee index filters by inactive status', function () {
         ->get(route('employees.index', ['status' => 'inactive']))
         ->assertOk()
         ->assertInertia(
-            fn($page) => $page
+            fn ($page) => $page
                 ->has('employees.data', 2)
         );
 });
@@ -108,9 +110,9 @@ test('employee index filters by inactive status', function () {
 test('employee index includes attendance log count', function () {
     $user = User::factory()->create();
     $employee = Employee::factory()->create();
-    $device = \App\Models\DeviceConfig::factory()->create();
+    $device = DeviceConfig::factory()->create();
 
-    \App\Models\AttendanceLog::factory()->count(5)->create([
+    AttendanceLog::factory()->count(5)->create([
         'employee_id' => $employee->id,
         'device_id' => $device->id,
     ]);
@@ -119,7 +121,7 @@ test('employee index includes attendance log count', function () {
         ->get(route('employees.index'))
         ->assertOk()
         ->assertInertia(
-            fn($page) => $page
+            fn ($page) => $page
                 ->where('employees.data.0.attendance_logs_count', 5)
         );
 });
@@ -131,7 +133,7 @@ test('employee index returns filter values', function () {
         ->get(route('employees.index', ['search' => 'test', 'status' => 'active']))
         ->assertOk()
         ->assertInertia(
-            fn($page) => $page
+            fn ($page) => $page
                 ->where('filters.search', 'test')
                 ->where('filters.status', 'active')
         );

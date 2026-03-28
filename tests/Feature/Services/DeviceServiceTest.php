@@ -168,6 +168,7 @@ test('handleRealtimeEvent stores attendance for known employee', function () {
         'user_id' => '6',
         'record_time' => '2025-03-01 09:00:00',
         'state' => 0,
+        'type' => 0,
         'device_ip' => '192.168.1.201',
     ], $this->device);
 
@@ -190,6 +191,7 @@ test('handleRealtimeEvent skips unknown user ids', function () {
         'user_id' => '999',
         'record_time' => '2025-03-01 09:00:00',
         'state' => 0,
+        'type' => 0,
         'device_ip' => '192.168.1.201',
     ], $this->device);
 
@@ -213,6 +215,7 @@ test('handleRealtimeEvent skips duplicate events', function () {
         'user_id' => '6',
         'record_time' => '2025-03-01 09:00:00',
         'state' => 0,
+        'type' => 0,
         'device_ip' => '192.168.1.201',
     ], $this->device);
 
@@ -220,7 +223,7 @@ test('handleRealtimeEvent skips duplicate events', function () {
         ->and(AttendanceLog::count())->toBe(1);
 });
 
-test('handleRealtimeEvent maps punch type from state', function () {
+test('handleRealtimeEvent maps punch type from type field', function () {
     Employee::factory()->create(['device_uid' => 6]);
 
     $service = new DeviceService;
@@ -229,10 +232,67 @@ test('handleRealtimeEvent maps punch type from state', function () {
         'user_id' => '6',
         'record_time' => '2025-03-01 18:00:00',
         'state' => 1,
+        'type' => 1,
         'device_ip' => '192.168.1.201',
     ], $this->device);
 
     expect(AttendanceLog::first()->punch_type)->toBe(PunchType::CheckOut);
+});
+
+test('handleRealtimeEvent maps all punch types correctly', function (int $type, PunchType $expected) {
+    Employee::factory()->create(['device_uid' => 6]);
+
+    $service = new DeviceService;
+
+    $service->handleRealtimeEvent([
+        'user_id' => '6',
+        'record_time' => '2025-03-01 09:00:00',
+        'state' => 1,
+        'type' => $type,
+        'device_ip' => '192.168.1.201',
+    ], $this->device);
+
+    expect(AttendanceLog::first()->punch_type)->toBe($expected);
+})->with([
+    'CheckIn' => [0, PunchType::CheckIn],
+    'CheckOut' => [1, PunchType::CheckOut],
+    'BreakOut' => [2, PunchType::BreakOut],
+    'BreakIn' => [3, PunchType::BreakIn],
+    'OvertimeIn' => [4, PunchType::OvertimeIn],
+    'OvertimeOut' => [5, PunchType::OvertimeOut],
+]);
+
+test('handleRealtimeEvent uses type not state for punch type', function () {
+    Employee::factory()->create(['device_uid' => 6]);
+
+    $service = new DeviceService;
+
+    // state=1 (Fingerprint) should NOT make it CheckOut;
+    // type=0 (CheckIn) should be used instead
+    $service->handleRealtimeEvent([
+        'user_id' => '6',
+        'record_time' => '2025-03-01 09:00:00',
+        'state' => 1,
+        'type' => 0,
+        'device_ip' => '192.168.1.201',
+    ], $this->device);
+
+    expect(AttendanceLog::first()->punch_type)->toBe(PunchType::CheckIn);
+});
+
+test('handleRealtimeEvent defaults to CheckIn when type is missing', function () {
+    Employee::factory()->create(['device_uid' => 6]);
+
+    $service = new DeviceService;
+
+    $service->handleRealtimeEvent([
+        'user_id' => '6',
+        'record_time' => '2025-03-01 09:00:00',
+        'state' => 1,
+        'device_ip' => '192.168.1.201',
+    ], $this->device);
+
+    expect(AttendanceLog::first()->punch_type)->toBe(PunchType::CheckIn);
 });
 
 test('listenForAttendance registers for real-time events', function () {

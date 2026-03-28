@@ -256,7 +256,7 @@ class DeviceService
     /**
      * Process a single real-time attendance event from a device.
      *
-     * @param  array{user_id: string, record_time: string, state: int, device_ip: string}  $event
+     * @param  array{user_id: string, record_time: string, state: int, type: int, device_ip: string}  $event
      * @return array{new: int, skipped: int}
      */
     public function handleRealtimeEvent(array $event, DeviceConfig $device): array
@@ -272,7 +272,7 @@ class DeviceService
         }
 
         $timestamp = Carbon::parse($event['record_time']);
-        $punchType = PunchType::tryFrom((int) ($event['state'] ?? 0)) ?? PunchType::CheckIn;
+        $punchType = PunchType::tryFrom((int) ($event['type'] ?? 0)) ?? PunchType::CheckIn;
 
         $existed = AttendanceLog::where('device_id', $device->id)
             ->where('device_uid', $deviceUid)

@@ -28,7 +28,7 @@ test('device index renders with devices', function () {
         ->get(route('devices.index'))
         ->assertOk()
         ->assertInertia(
-            fn ($page) => $page
+            fn($page) => $page
                 ->component('devices/Index')
                 ->has('devices', 1)
                 ->where('devices.0.name', $device->name)
@@ -44,7 +44,7 @@ test('device index shows attendance log counts', function () {
         ->get(route('devices.index'))
         ->assertOk()
         ->assertInertia(
-            fn ($page) => $page
+            fn($page) => $page
                 ->where('devices.0.attendance_logs_count', 5)
         );
 });
@@ -61,7 +61,7 @@ test('device show renders with device details', function () {
         ->get(route('devices.show', $device))
         ->assertOk()
         ->assertInertia(
-            fn ($page) => $page
+            fn($page) => $page
                 ->component('devices/Show')
                 ->has('device')
                 ->where('device.name', $device->name)
@@ -83,7 +83,7 @@ test('device show includes recent attendance logs', function () {
         ->get(route('devices.show', $device))
         ->assertOk()
         ->assertInertia(
-            fn ($page) => $page
+            fn($page) => $page
                 ->has('recentLogs', 3)
         );
 });
@@ -190,7 +190,7 @@ test('poll realtime device returns listener message', function () {
         ->assertJson([
             'success' => true,
         ])
-        ->assertJsonFragment(['message' => 'This device uses real-time mode. Start the listener with: php artisan devices:listen --device='.$device->id]);
+        ->assertJsonFragment(['message' => 'This device uses real-time mode. Start the listener with: php artisan devices:listen --device=' . $device->id]);
 });
 
 // ==========================================
@@ -230,6 +230,73 @@ test('device poll_method can be updated', function () {
     expect($device->fresh()->poll_method)->toBe('bulk');
 });
 
+test('device name can be updated', function () {
+    $user = User::factory()->create();
+    $device = DeviceConfig::factory()->create(['name' => 'Old Name']);
+
+    $this->actingAs($user)
+        ->patch(route('devices.update', $device), ['name' => 'New Name'])
+        ->assertRedirect();
+
+    expect($device->fresh()->name)->toBe('New Name');
+});
+
+test('device connection details can be updated', function () {
+    $user = User::factory()->create();
+    $device = DeviceConfig::factory()->create();
+
+    $this->actingAs($user)
+        ->patch(route('devices.update', $device), [
+            'name' => 'Updated Device',
+            'ip_address' => '10.0.0.50',
+            'port' => 5000,
+            'protocol' => 'udp',
+            'poll_method' => 'bulk',
+        ])
+        ->assertRedirect();
+
+    $updated = $device->fresh();
+    expect($updated->name)->toBe('Updated Device');
+    expect($updated->ip_address)->toBe('10.0.0.50');
+    expect($updated->port)->toBe(5000);
+    expect($updated->protocol)->toBe('udp');
+    expect($updated->poll_method)->toBe('bulk');
+});
+
+test('device update validates ip address format', function () {
+    $user = User::factory()->create();
+    $device = DeviceConfig::factory()->create();
+
+    $this->actingAs($user)
+        ->patch(route('devices.update', $device), ['ip_address' => 'not-an-ip'])
+        ->assertSessionHasErrors(['ip_address']);
+});
+
+test('device update validates port range', function () {
+    $user = User::factory()->create();
+    $device = DeviceConfig::factory()->create();
+
+    $this->actingAs($user)
+        ->patch(route('devices.update', $device), ['port' => 99999])
+        ->assertSessionHasErrors(['port']);
+});
+
+test('device update validates protocol values', function () {
+    $user = User::factory()->create();
+    $device = DeviceConfig::factory()->create();
+
+    $this->actingAs($user)
+        ->patch(route('devices.update', $device), ['protocol' => 'invalid'])
+        ->assertSessionHasErrors(['protocol']);
+});
+
+test('device update requires authentication', function () {
+    $device = DeviceConfig::factory()->create();
+
+    $this->patch(route('devices.update', $device), ['name' => 'Test'])
+        ->assertRedirect(route('login'));
+});
+
 // ==========================================
 // Clear Device Attendance
 // ==========================================
@@ -242,7 +309,7 @@ test('clear attendance clears device and local records', function () {
     $mock = $this->mock(DeviceService::class);
     $mock->shouldReceive('clearDeviceAttendance')
         ->once()
-        ->with(Mockery::on(fn ($d) => $d->id === $device->id))
+        ->with(Mockery::on(fn($d) => $d->id === $device->id))
         ->andReturn(true);
     $mock->shouldReceive('disconnect')->once();
 
@@ -345,7 +412,7 @@ test('clear device users removes all users from device', function () {
     $mock = $this->mock(DeviceService::class);
     $mock->shouldReceive('removeAllUsersFromDevice')
         ->once()
-        ->with(Mockery::on(fn ($d) => $d->id === $device->id))
+        ->with(Mockery::on(fn($d) => $d->id === $device->id))
         ->andReturn(5);
     $mock->shouldReceive('disconnect')->once();
 
@@ -392,7 +459,7 @@ test('sync time sets device time and returns success', function () {
     $mock = $this->mock(DeviceService::class);
     $mock->shouldReceive('syncTime')
         ->once()
-        ->with(Mockery::on(fn ($d) => $d->id === $device->id))
+        ->with(Mockery::on(fn($d) => $d->id === $device->id))
         ->andReturn([
             'success' => true,
             'device_time' => '2026-03-27 12:00:00',

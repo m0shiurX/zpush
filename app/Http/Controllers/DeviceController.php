@@ -3,12 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreDeviceRequest;
+use App\Http\Requests\UpdateDeviceRequest;
 use App\Models\AttendanceLog;
 use App\Models\DeviceConfig;
 use App\Services\DeviceService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -22,7 +22,7 @@ class DeviceController extends Controller
         $devices = DeviceConfig::query()
             ->withCount('attendanceLogs')
             ->get()
-            ->map(fn (DeviceConfig $device) => [
+            ->map(fn(DeviceConfig $device) => [
                 'id' => $device->id,
                 'name' => $device->name,
                 'ip_address' => $device->ip_address,
@@ -53,7 +53,7 @@ class DeviceController extends Controller
             ->latest('timestamp')
             ->limit(50)
             ->get()
-            ->map(fn (AttendanceLog $log) => [
+            ->map(fn(AttendanceLog $log) => [
                 'id' => $log->id,
                 'employee_name' => $log->employee?->name ?? "UID {$log->device_uid}",
                 'employee_code' => $log->employee?->employee_code,
@@ -132,7 +132,7 @@ class DeviceController extends Controller
         if ($device->isRealtime()) {
             return response()->json([
                 'success' => true,
-                'message' => 'This device uses real-time mode. Start the listener with: php artisan devices:listen --device='.$device->id,
+                'message' => 'This device uses real-time mode. Start the listener with: php artisan devices:listen --device=' . $device->id,
             ]);
         }
 
@@ -248,16 +248,11 @@ class DeviceController extends Controller
     }
 
     /**
-     * Toggle device active/inactive status.
+     * Update device configuration.
      */
-    public function update(Request $request, DeviceConfig $device): RedirectResponse
+    public function update(UpdateDeviceRequest $request, DeviceConfig $device): RedirectResponse
     {
-        $validated = $request->validate([
-            'is_active' => ['sometimes', 'boolean'],
-            'poll_method' => ['sometimes', 'string', 'in:realtime,bulk'],
-        ]);
-
-        $device->update($validated);
+        $device->update($request->validated());
 
         return back();
     }

@@ -209,7 +209,7 @@ test('cloud page redirects to dashboard when setup is complete', function () {
 // Store Cloud Server
 // ==========================================
 
-test('storing cloud server creates a new record', function () {
+test('storing cloud server creates a new record without branch', function () {
     $response = $this->post(route('setup.cloud.store'), [
         'api_base_url' => 'https://api.example.com',
         'api_key' => 'my-secret-key',
@@ -217,9 +217,10 @@ test('storing cloud server creates a new record', function () {
 
     $response->assertRedirect(route('setup.complete'));
 
+    $server = CloudServer::first();
     expect(CloudServer::count())->toBe(1)
-        ->and(CloudServer::first())
-        ->api_base_url->toBe('https://api.example.com');
+        ->and($server->api_base_url)->toBe('https://api.example.com')
+        ->and($server->branch_id)->toBeNull();
 });
 
 test('storing cloud server validates required fields', function () {

@@ -4,8 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreDeviceRequest;
 use App\Http\Requests\UpdateDeviceRequest;
+use App\Jobs\SyncEmployeesToDevice;
 use App\Models\AttendanceLog;
 use App\Models\DeviceConfig;
+use App\Models\Employee;
 use App\Services\DeviceService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -22,7 +24,7 @@ class DeviceController extends Controller
         $devices = DeviceConfig::query()
             ->withCount('attendanceLogs')
             ->get()
-            ->map(fn (DeviceConfig $device) => [
+            ->map(fn(DeviceConfig $device) => [
                 'id' => $device->id,
                 'name' => $device->name,
                 'ip_address' => $device->ip_address,
@@ -53,7 +55,7 @@ class DeviceController extends Controller
             ->latest('timestamp')
             ->limit(50)
             ->get()
-            ->map(fn (AttendanceLog $log) => [
+            ->map(fn(AttendanceLog $log) => [
                 'id' => $log->id,
                 'employee_name' => $log->employee?->name ?? "UID {$log->device_uid}",
                 'employee_code' => $log->employee?->employee_code,
@@ -129,13 +131,6 @@ class DeviceController extends Controller
             ]);
         }
 
-        if ($device->isRealtime()) {
-            return response()->json([
-                'success' => true,
-                'message' => 'This device uses real-time mode. Start the listener with: php artisan devices:listen --device='.$device->id,
-            ]);
-        }
-
         try {
             set_time_limit(30);
 
@@ -204,9 +199,14 @@ class DeviceController extends Controller
         try {
             $removed = $service->removeAllUsersFromDevice($device);
 
+            Employee::whereNotNull('device_synced_at')
+                ->update(['device_synced_at' => null]);
+
+            SyncEmployeesToDevice::dispatch($device->id);
+
             return response()->json([
                 'success' => true,
-                'message' => "{$removed} users removed from device.",
+                'message' => "{$removed} users removed from device. Employees will be re-pushed automatically.",
                 'removed' => $removed,
             ]);
         } catch (\Throwable $e) {

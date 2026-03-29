@@ -117,17 +117,12 @@ class CloudApiService
      */
     public function fetchEmployees(?string $updatedSince = null): array
     {
-        if (! $this->server->branch_id) {
-            return [
-                'success' => false,
-                'employees' => [],
-                'total' => 0,
-                'error' => 'No branch configured on cloud server.',
-            ];
-        }
-
         try {
-            $params = ['branch_id' => $this->server->branch_id];
+            $params = [];
+
+            if ($this->server->branch_id) {
+                $params['branch_id'] = $this->server->branch_id;
+            }
 
             if ($updatedSince) {
                 $params['updated_since'] = $updatedSince;

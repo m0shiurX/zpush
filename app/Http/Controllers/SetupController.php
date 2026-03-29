@@ -112,10 +112,8 @@ class SetupController extends Controller
         );
 
         // Store branch info in app_settings for quick access
-        if ($request->filled('branch_id')) {
-            AppSetting::set('cloud_branch_id', $request->validated('branch_id'));
-            AppSetting::set('cloud_branch_name', $request->validated('branch_name'));
-        }
+        AppSetting::set('cloud_branch_id', $request->validated('branch_id'));
+        AppSetting::set('cloud_branch_name', $request->validated('branch_name'));
 
         return redirect()->route('setup.complete');
     }

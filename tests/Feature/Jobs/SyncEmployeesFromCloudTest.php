@@ -2,10 +2,12 @@
 
 use App\Enums\SyncDirection;
 use App\Jobs\SyncEmployeesFromCloud;
+use App\Jobs\SyncEmployeesToDevice;
 use App\Models\CloudServer;
 use App\Models\Employee;
 use App\Models\SyncLog;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Queue;
 
 beforeEach(function () {
     $this->server = CloudServer::factory()
@@ -15,6 +17,8 @@ beforeEach(function () {
 });
 
 test('creates new employees from cloud response', function () {
+    Queue::fake();
+
     Http::fake([
         '*/api/v1/zpush/ping' => Http::response(['success' => true, 'server_time' => now()->toIso8601String()]),
         '*/api/v1/zpush/employees*' => Http::response([
@@ -46,9 +50,13 @@ test('creates new employees from cloud response', function () {
         ->and($employee->cloud_synced_at)->not->toBeNull();
 
     expect(SyncLog::where('direction', SyncDirection::CloudDown)->where('entity_type', 'employee')->exists())->toBeTrue();
+
+    Queue::assertPushed(SyncEmployeesToDevice::class);
 });
 
 test('updates existing employee when data changes', function () {
+    Queue::fake();
+
     $employee = Employee::factory()->create([
         'cloud_id' => 10,
         'employee_code' => 'CLOUD-002',
@@ -82,6 +90,8 @@ test('updates existing employee when data changes', function () {
     $employee->refresh();
     expect($employee->name)->toBe('New Name')
         ->and($employee->department)->toBe('Engineering');
+
+    Queue::assertPushed(SyncEmployeesToDevice::class);
 });
 
 test('does not update employee when hash matches', function () {

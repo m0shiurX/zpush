@@ -63,6 +63,20 @@ test('fetchBranches returns list of branches', function () {
         ->and($result['branches'][0]['name'])->toBe('Main Factory');
 });
 
+test('fetchBranches returns empty when cloud has no branches', function () {
+    Http::fake([
+        'lavloss.test/api/v1/zpush/branches' => Http::response([
+            'branches' => [],
+        ]),
+    ]);
+
+    $api = new CloudApiService($this->server);
+    $result = $api->fetchBranches();
+
+    expect($result['success'])->toBeTrue()
+        ->and($result['branches'])->toBeEmpty();
+});
+
 test('fetchBranches returns failure on error', function () {
     Http::fake([
         'lavloss.test/api/v1/zpush/branches' => Http::response(null, 401),
@@ -121,18 +135,40 @@ test('fetchEmployees supports updated_since parameter', function () {
     });
 });
 
-test('fetchEmployees fails when no branch is configured', function () {
+test('fetchEmployees works without branch configured', function () {
     $noBranchServer = CloudServer::factory()->create([
         'api_base_url' => 'https://lavloss.test',
         'api_key' => 'test-token',
         'branch_id' => null,
     ]);
 
+    Http::fake([
+        'lavloss.test/api/v1/zpush/employees*' => Http::response([
+            'employees' => [
+                [
+                    'id' => 1,
+                    'employee_code' => 'EMP-001',
+                    'name' => 'Test User',
+                    'department' => 'IT',
+                    'designation' => 'Dev',
+                    'shift' => null,
+                    'is_active' => true,
+                    'updated_at' => '2026-03-01T12:00:00Z',
+                ],
+            ],
+            'total' => 1,
+        ]),
+    ]);
+
     $api = new CloudApiService($noBranchServer);
     $result = $api->fetchEmployees();
 
-    expect($result['success'])->toBeFalse()
-        ->and($result['error'])->toContain('No branch configured');
+    expect($result['success'])->toBeTrue()
+        ->and($result['employees'])->toHaveCount(1);
+
+    Http::assertSent(function ($request) {
+        return ! str_contains($request->url(), 'branch_id=');
+    });
 });
 
 test('uploadAttendance sends records and returns result', function () {

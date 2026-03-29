@@ -42,10 +42,8 @@ class CloudServerController extends Controller
             $request->validated(),
         );
 
-        if ($request->filled('branch_id')) {
-            AppSetting::set('cloud_branch_id', $request->validated('branch_id'));
-            AppSetting::set('cloud_branch_name', $request->validated('branch_name'));
-        }
+        AppSetting::set('cloud_branch_id', $request->validated('branch_id'));
+        AppSetting::set('cloud_branch_name', $request->validated('branch_name'));
 
         return redirect()->route('cloud-servers.index')
             ->with('success', 'Cloud server configuration saved.');

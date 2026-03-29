@@ -254,6 +254,13 @@ async function handleClearDeviceUsers() {
     }
 }
 
+function confirmDangerAction() {
+    const action = showDangerConfirm.value;
+    if (action === 'device') handleClearDeviceAttendance();
+    else if (action === 'users') handleClearDeviceUsers();
+    else if (action === 'local') handleClearLocalAttendance();
+}
+
 function formatTime(iso: string): string {
     return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 }
@@ -544,8 +551,7 @@ function timeAgo(iso: string | null): string {
                     <AlertDialogFooter>
                         <AlertDialogCancel>Cancel</AlertDialogCancel>
                         <AlertDialogAction class="bg-destructive text-white hover:bg-destructive/90"
-                            :disabled="clearingDevice || clearingLocal || clearingUsers"
-                            @click="showDangerConfirm === 'device' ? handleClearDeviceAttendance() : showDangerConfirm === 'users' ? handleClearDeviceUsers() : handleClearLocalAttendance()">
+                            :disabled="clearingDevice || clearingLocal || clearingUsers" @click="confirmDangerAction()">
                             {{ (clearingDevice || clearingLocal || clearingUsers) ? 'Clearing...' : 'Yes, Clear' }}
                         </AlertDialogAction>
                     </AlertDialogFooter>

@@ -66,17 +66,6 @@ test('skips when no active cloud server exists', function () {
     Http::assertNothingSent();
 });
 
-test('skips when cloud server has no branch configured', function () {
-    $this->server->update(['branch_id' => null]);
-
-    Http::fake();
-
-    $job = new SyncAttendanceToCloud;
-    app()->call([$job, 'handle']);
-
-    Http::assertNothingSent();
-});
-
 test('skips when cloud is not reachable', function () {
     Http::fake([
         '*/api/v1/zpush/ping' => Http::response([], 500),

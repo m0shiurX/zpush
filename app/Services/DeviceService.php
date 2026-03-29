@@ -315,7 +315,7 @@ class DeviceService
             cardno: (int) ($employee->card_number ?? 0),
         );
 
-        return (bool) $result;
+        return $result !== false;
     }
 
     /**
@@ -327,7 +327,7 @@ class DeviceService
     {
         $this->ensureConnected($device);
 
-        return (bool) $this->zk->removeUser($uid);
+        return $this->zk->removeUser($uid) !== false;
     }
 
     /**
@@ -339,7 +339,7 @@ class DeviceService
     {
         $this->ensureConnected($device);
 
-        return (bool) $this->zk->clearAttendance();
+        return $this->zk->clearAttendance() !== false;
     }
 
     /**
@@ -361,7 +361,7 @@ class DeviceService
 
         $removed = 0;
         foreach ($users as $user) {
-            if ($this->zk->removeUser((int) $user['uid'])) {
+            if ($this->zk->removeUser((int) $user['uid']) !== false) {
                 $removed++;
             }
         }

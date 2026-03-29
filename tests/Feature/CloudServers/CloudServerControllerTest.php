@@ -52,7 +52,7 @@ test('cloud servers index renders with server and logs', function () {
 // Store
 // ==========================================
 
-test('cloud server can be created', function () {
+test('cloud server can be created without branch', function () {
     $user = User::factory()->create();
 
     $this->actingAs($user)
@@ -62,9 +62,9 @@ test('cloud server can be created', function () {
         ])
         ->assertRedirect(route('cloud-servers.index'));
 
-    $this->assertDatabaseHas('cloud_servers', [
-        'api_base_url' => 'https://api.example.com',
-    ]);
+    $server = CloudServer::first();
+    expect($server->api_base_url)->toBe('https://api.example.com')
+        ->and($server->branch_id)->toBeNull();
 });
 
 test('cloud server store validates required fields', function () {

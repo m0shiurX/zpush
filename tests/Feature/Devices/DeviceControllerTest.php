@@ -1,12 +1,14 @@
 <?php
 
 use App\Exceptions\DeviceConnectionException;
+use App\Jobs\SyncEmployeesToDevice;
 use App\Models\AppSetting;
 use App\Models\AttendanceLog;
 use App\Models\DeviceConfig;
 use App\Models\Employee;
 use App\Models\User;
 use App\Services\DeviceService;
+use Illuminate\Support\Facades\Queue;
 
 beforeEach(function () {
     AppSetting::set('setup_completed', true);
@@ -28,7 +30,7 @@ test('device index renders with devices', function () {
         ->get(route('devices.index'))
         ->assertOk()
         ->assertInertia(
-            fn ($page) => $page
+            fn($page) => $page
                 ->component('devices/Index')
                 ->has('devices', 1)
                 ->where('devices.0.name', $device->name)
@@ -44,7 +46,7 @@ test('device index shows attendance log counts', function () {
         ->get(route('devices.index'))
         ->assertOk()
         ->assertInertia(
-            fn ($page) => $page
+            fn($page) => $page
                 ->where('devices.0.attendance_logs_count', 5)
         );
 });
@@ -61,7 +63,7 @@ test('device show renders with device details', function () {
         ->get(route('devices.show', $device))
         ->assertOk()
         ->assertInertia(
-            fn ($page) => $page
+            fn($page) => $page
                 ->component('devices/Show')
                 ->has('device')
                 ->where('device.name', $device->name)
@@ -83,7 +85,7 @@ test('device show includes recent attendance logs', function () {
         ->get(route('devices.show', $device))
         ->assertOk()
         ->assertInertia(
-            fn ($page) => $page
+            fn($page) => $page
                 ->has('recentLogs', 3)
         );
 });
@@ -180,17 +182,28 @@ test('poll device returns attendance results', function () {
         ]);
 });
 
-test('poll realtime device returns listener message', function () {
+test('poll realtime device performs poll like bulk', function () {
     $user = User::factory()->create();
     $device = DeviceConfig::factory()->create(['poll_method' => 'realtime']);
+
+    $mock = $this->mock(DeviceService::class);
+    $mock->shouldReceive('syncUsersFromDevice')
+        ->once()
+        ->andReturn(collect([Employee::factory()->make()]));
+    $mock->shouldReceive('pollAttendance')
+        ->once()
+        ->andReturn(['total' => 3, 'new' => 2, 'duplicates' => 1]);
+    $mock->shouldReceive('disconnect')->once();
 
     $this->actingAs($user)
         ->postJson(route('devices.poll', $device))
         ->assertSuccessful()
         ->assertJson([
             'success' => true,
-        ])
-        ->assertJsonFragment(['message' => 'This device uses real-time mode. Start the listener with: php artisan devices:listen --device='.$device->id]);
+            'new' => 2,
+            'duplicates' => 1,
+            'users_synced' => 1,
+        ]);
 });
 
 // ==========================================
@@ -309,7 +322,7 @@ test('clear attendance clears device and local records', function () {
     $mock = $this->mock(DeviceService::class);
     $mock->shouldReceive('clearDeviceAttendance')
         ->once()
-        ->with(Mockery::on(fn ($d) => $d->id === $device->id))
+        ->with(Mockery::on(fn($d) => $d->id === $device->id))
         ->andReturn(true);
     $mock->shouldReceive('disconnect')->once();
 
@@ -406,13 +419,18 @@ test('clear local attendance requires authentication', function () {
 // ==========================================
 
 test('clear device users removes all users from device', function () {
+    Queue::fake();
+
     $user = User::factory()->create();
     $device = DeviceConfig::factory()->create();
+    $employee = Employee::factory()->create([
+        'device_synced_at' => now(),
+    ]);
 
     $mock = $this->mock(DeviceService::class);
     $mock->shouldReceive('removeAllUsersFromDevice')
         ->once()
-        ->with(Mockery::on(fn ($d) => $d->id === $device->id))
+        ->with(Mockery::on(fn($d) => $d->id === $device->id))
         ->andReturn(5);
     $mock->shouldReceive('disconnect')->once();
 
@@ -423,6 +441,10 @@ test('clear device users removes all users from device', function () {
             'success' => true,
             'removed' => 5,
         ]);
+
+    expect($employee->fresh()->device_synced_at)->toBeNull();
+
+    Queue::assertPushed(SyncEmployeesToDevice::class, fn($job) => $job->deviceId === $device->id);
 });
 
 test('clear device users handles connection error', function () {
@@ -459,7 +481,7 @@ test('sync time sets device time and returns success', function () {
     $mock = $this->mock(DeviceService::class);
     $mock->shouldReceive('syncTime')
         ->once()
-        ->with(Mockery::on(fn ($d) => $d->id === $device->id))
+        ->with(Mockery::on(fn($d) => $d->id === $device->id))
         ->andReturn([
             'success' => true,
             'device_time' => '2026-03-27 12:00:00',

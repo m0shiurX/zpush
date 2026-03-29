@@ -56,8 +56,8 @@ class SyncAttendanceToCloud implements ShouldBeUnique, ShouldQueue
     {
         $server = CloudServer::query()->active()->first();
 
-        if (! $server || ! $server->branch_id) {
-            Log::info('SyncAttendanceToCloud: No active cloud server with branch configured.');
+        if (! $server) {
+            Log::info('SyncAttendanceToCloud: No active cloud server configured.');
 
             return;
         }

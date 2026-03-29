@@ -3,10 +3,10 @@ import { Head, Link, router, useForm, usePoll } from '@inertiajs/vue3';
 import axios from 'axios';
 import {
     Wifi, RefreshCw, Clock, Database, Activity, Settings, Trash2,
-    AlertTriangle, UserX, MoreVertical, Pencil, WifiOff
+    AlertTriangle, UserX, MoreVertical, Pencil, WifiOff, Radio, Square, RotateCw
 } from 'lucide-vue-next';
 import { ref } from 'vue';
-import { test, poll, syncTime, clearAttendance, clearLocalAttendance, clearDeviceUsers, update } from '@/actions/App/Http/Controllers/DeviceController';
+import { test, poll, syncTime, clearAttendance, clearLocalAttendance, clearDeviceUsers, update, startListener, stopListener, restartListener } from '@/actions/App/Http/Controllers/DeviceController';
 import InputError from '@/components/InputError.vue';
 import StatusBadge from '@/components/StatusBadge.vue';
 import {
@@ -89,6 +89,9 @@ const polling = ref(false);
 const syncingTime = ref(false);
 const resultMessage = ref('');
 const resultSuccess = ref(false);
+
+// Listener control
+const togglingListener = ref(false);
 
 // Edit dialog
 const showEditDialog = ref(false);
@@ -261,6 +264,63 @@ function confirmDangerAction() {
     else if (action === 'local') handleClearLocalAttendance();
 }
 
+async function handleStartListener() {
+    togglingListener.value = true;
+    resultMessage.value = '';
+
+    try {
+        const { data } = await axios.post(startListener.url({ device: props.device.id }));
+        resultSuccess.value = data.success;
+        resultMessage.value = data.success ? data.message : `Error: ${data.error}`;
+        if (data.success) {
+            router.reload({ only: ['device'] });
+        }
+    } catch (error: any) {
+        resultSuccess.value = false;
+        resultMessage.value = error.response?.data?.error ?? 'Failed to start listener';
+    } finally {
+        togglingListener.value = false;
+    }
+}
+
+async function handleStopListener() {
+    togglingListener.value = true;
+    resultMessage.value = '';
+
+    try {
+        const { data } = await axios.post(stopListener.url({ device: props.device.id }));
+        resultSuccess.value = data.success;
+        resultMessage.value = data.success ? data.message : `Error: ${data.error}`;
+        if (data.success) {
+            router.reload({ only: ['device'] });
+        }
+    } catch (error: any) {
+        resultSuccess.value = false;
+        resultMessage.value = error.response?.data?.error ?? 'Failed to stop listener';
+    } finally {
+        togglingListener.value = false;
+    }
+}
+
+async function handleRestartListener() {
+    togglingListener.value = true;
+    resultMessage.value = '';
+
+    try {
+        const { data } = await axios.post(restartListener.url({ device: props.device.id }));
+        resultSuccess.value = data.success;
+        resultMessage.value = data.success ? data.message : `Error: ${data.error}`;
+        if (data.success) {
+            router.reload({ only: ['device'] });
+        }
+    } catch (error: any) {
+        resultSuccess.value = false;
+        resultMessage.value = error.response?.data?.error ?? 'Failed to restart listener';
+    } finally {
+        togglingListener.value = false;
+    }
+}
+
 function formatTime(iso: string): string {
     return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 }
@@ -417,6 +477,27 @@ function timeAgo(iso: string | null): string {
                             <Clock class="mr-1.5 h-3.5 w-3.5" />
                             {{ syncingTime ? 'Syncing...' : 'Sync Time' }}
                         </Button>
+                        <template v-if="device.poll_method === 'realtime'">
+                            <Separator orientation="vertical" class="mx-1 h-6" />
+                            <Button v-if="device.is_listening" size="sm" variant="outline" :disabled="togglingListener" @click="handleStopListener">
+                                <Square class="mr-1.5 h-3.5 w-3.5" />
+                                {{ togglingListener ? 'Stopping...' : 'Stop Listener' }}
+                            </Button>
+                            <Button v-else size="sm" variant="outline" :disabled="togglingListener" @click="handleStartListener">
+                                <Radio class="mr-1.5 h-3.5 w-3.5" />
+                                {{ togglingListener ? 'Starting...' : 'Start Listener' }}
+                            </Button>
+                            <TooltipProvider>
+                                <Tooltip>
+                                    <TooltipTrigger as-child>
+                                        <Button size="sm" variant="ghost" :disabled="togglingListener || !device.is_listening" @click="handleRestartListener">
+                                            <RotateCw class="h-3.5 w-3.5" :class="{ 'animate-spin': togglingListener && device.is_listening }" />
+                                        </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>Restart Listener</TooltipContent>
+                                </Tooltip>
+                            </TooltipProvider>
+                        </template>
                     </div>
                 </CardContent>
             </Card>

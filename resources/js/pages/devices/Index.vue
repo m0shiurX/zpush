@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { Head, Link, router, useForm, usePoll } from '@inertiajs/vue3';
 import axios from 'axios';
-import { MoreVertical, Wifi, WifiOff, RefreshCw, Zap, Activity, Clock, Database, Trash2,Pencil } from 'lucide-vue-next';
+import { MoreVertical, Wifi, WifiOff, RefreshCw, Zap, Activity, Clock, Database, Trash2, Pencil, Radio, Square } from 'lucide-vue-next';
 import { ref } from 'vue';
-import { test, poll, store, destroy, update } from '@/actions/App/Http/Controllers/DeviceController';
+import { test, poll, store, destroy, update, startListener, stopListener } from '@/actions/App/Http/Controllers/DeviceController';
 import InputError from '@/components/InputError.vue';
 import StatusBadge from '@/components/StatusBadge.vue';
 import {
@@ -100,6 +100,7 @@ function handleDelete(deviceId: number) {
 
 const testingDevice = ref<number | null>(null);
 const pollingDevice = ref<number | null>(null);
+const togglingListenerDevice = ref<number | null>(null);
 const testResult = ref<Record<number, { success: boolean; message: string }>>({});
 
 async function handleTest(deviceId: number) {
@@ -154,6 +155,29 @@ async function handlePoll(deviceId: number) {
         };
     } finally {
         pollingDevice.value = null;
+    }
+}
+
+async function handleToggleListener(device: Device) {
+    togglingListenerDevice.value = device.id;
+    const action = device.is_listening ? stopListener : startListener;
+
+    try {
+        const { data } = await axios.post(action.url({ device: device.id }));
+        testResult.value[device.id] = {
+            success: data.success,
+            message: data.success ? data.message : (data.error ?? 'Failed'),
+        };
+        if (data.success) {
+            router.reload({ only: ['devices'] });
+        }
+    } catch (error: any) {
+        testResult.value[device.id] = {
+            success: false,
+            message: error.response?.data?.error ?? 'Failed to toggle listener',
+        };
+    } finally {
+        togglingListenerDevice.value = null;
     }
 }
 
@@ -287,6 +311,10 @@ function statusIcon(device: Device) {
                                         <DropdownMenuItem @click="handleToggleActive(device)">
                                             <component :is="device.is_active ? WifiOff : Wifi" class="mr-2 h-4 w-4" />
                                             {{ device.is_active ? 'Deactivate' : 'Activate' }}
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem v-if="device.poll_method === 'realtime'" :disabled="togglingListenerDevice === device.id" @click="handleToggleListener(device)">
+                                            <component :is="device.is_listening ? Square : Radio" class="mr-2 h-4 w-4" />
+                                            {{ device.is_listening ? 'Stop Listener' : 'Start Listener' }}
                                         </DropdownMenuItem>
                                         <DropdownMenuSeparator />
                                         <AlertDialog>

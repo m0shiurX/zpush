@@ -22,6 +22,7 @@ const active = computed(() => {
     if (props.item.disabled) return false;
 
     const url = page.url;
+    
     if (!props.item.activePatterns || props.item.activePatterns.length === 0) {
         return url === props.item.href;
     }

@@ -28,24 +28,24 @@ export const menuConfig: MenuConfig = {
             titleKey: 'nav.main',
             icon: 'DashboardIcon',
             route: dashboard,
-            activePatterns: ['/dashboard'],
+            activePatterns: ['/dashboard','/devices', '/attendance', '/employees','/cloud-servers', '/sync'],
         },
         // Devices - Device management, attendance, employees
-        {
-            id: 'devices',
-            titleKey: 'nav.devices_section',
-            icon: 'DatabaseIcon',
-            route: devicesIndex,
-            activePatterns: ['/devices', '/attendance', '/employees'],
-        },
+        // {
+        //     id: 'devices',
+        //     titleKey: 'nav.devices_section',
+        //     icon: 'DatabaseIcon',
+        //     route: devicesIndex,
+        //     activePatterns: ['/devices', '/attendance', '/employees'],
+        // },
         // Cloud - Cloud server management, sync monitoring
-        {
-            id: 'cloud',
-            titleKey: 'nav.cloud_section',
-            icon: 'CloudIcon',
-            route: cloudServersIndex,
-            activePatterns: ['/cloud-servers', '/sync'],
-        },
+        // {
+        //     id: 'cloud',
+        //     titleKey: 'nav.cloud_section',
+        //     icon: 'CloudIcon',
+        //     route: cloudServersIndex,
+        //     activePatterns: ['/cloud-servers', '/sync'],
+        // },
     ],
 
     /**
@@ -69,19 +69,31 @@ export const menuConfig: MenuConfig = {
                             titleKey: 'nav.devices',
                             route: devicesIndex,
                             icon: 'DatabaseIcon',
-                            activePatterns: ['/devices*'],
+                            activePatterns: ['/devices'],
                         },
                         {
                             titleKey: 'nav.attendance',
                             route: attendanceIndex,
                             icon: 'ClockIcon',
-                            activePatterns: ['/attendance*'],
+                            activePatterns: ['/attendance'],
                         },
                         {
                             titleKey: 'nav.employees',
                             route: employeesIndex,
                             icon: 'UsersIcon',
-                            activePatterns: ['/employees*'],
+                            activePatterns: ['/employees'],
+                        },
+                        {
+                            titleKey: 'nav.cloud_servers',
+                            route: cloudServersIndex,
+                            icon: 'CloudIcon',
+                            activePatterns: ['/cloud-servers'],
+                        },
+                        {
+                            titleKey: 'nav.sync_monitor',
+                            route: syncIndex,
+                            icon: 'RefreshIcon',
+                            activePatterns: ['/sync'],
                         },
                         // {
                         //     titleKey: 'nav.home',
@@ -94,34 +106,34 @@ export const menuConfig: MenuConfig = {
             ],
         },
         // DEVICES - Device management
-        devices: {
-            titleKey: 'nav.devices_section',
-            groups: [
-                {
-                    titleKey: 'nav.device_management',
-                    items: [
-                        {
-                            titleKey: 'nav.devices',
-                            route: devicesIndex,
-                            icon: 'DatabaseIcon',
-                            activePatterns: ['/devices*'],
-                        },
-                        {
-                            titleKey: 'nav.attendance',
-                            route: attendanceIndex,
-                            icon: 'ClockIcon',
-                            activePatterns: ['/attendance*'],
-                        },
-                        {
-                            titleKey: 'nav.employees',
-                            route: employeesIndex,
-                            icon: 'UsersIcon',
-                            activePatterns: ['/employees*'],
-                        },
-                    ],
-                },
-            ],
-        },
+        // devices: {
+        //     titleKey: 'nav.devices_section',
+        //     groups: [
+        //         {
+        //             titleKey: 'nav.device_management',
+        //             items: [
+        //                 {
+        //                     titleKey: 'nav.devices',
+        //                     route: devicesIndex,
+        //                     icon: 'DatabaseIcon',
+        //                     activePatterns: ['/devices*'],
+        //                 },
+        //                 {
+        //                     titleKey: 'nav.attendance',
+        //                     route: attendanceIndex,
+        //                     icon: 'ClockIcon',
+        //                     activePatterns: ['/attendance*'],
+        //                 },
+        //                 {
+        //                     titleKey: 'nav.employees',
+        //                     route: employeesIndex,
+        //                     icon: 'UsersIcon',
+        //                     activePatterns: ['/employees*'],
+        //                 },
+        //             ],
+        //         },
+        //     ],
+        // },
         // CLOUD - Cloud server and sync management
         cloud: {
             titleKey: 'nav.cloud_section',

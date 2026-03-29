@@ -20,18 +20,20 @@ use Inertia\Response;
 class SetupController extends Controller
 {
     /**
-     * Step 1 — Welcome / intro page.
+     * Step 1 — Setup wizard page.
      */
-    public function welcome(): Response|RedirectResponse
+    public function wizard(): Response|RedirectResponse
     {
         if (AppSetting::isTrue('setup_completed')) {
             return redirect()->route('dashboard');
         }
 
-        return Inertia::render('setup/Welcome',
+        return Inertia::render(
+            'setup/Wizard',
             [
                 'hasUsers' => User::exists(),
-            ]);
+            ]
+        );
     }
 
     /**

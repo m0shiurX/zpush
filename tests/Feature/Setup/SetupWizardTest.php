@@ -12,16 +12,16 @@ use Illuminate\Support\Facades\Http;
 // ==========================================
 
 test('welcome page renders when setup is not complete', function () {
-    $response = $this->get(route('setup.welcome'));
+    $response = $this->get(route('setup.wizard'));
 
     $response->assertOk()
-        ->assertInertia(fn ($page) => $page->component('setup/Welcome'));
+        ->assertInertia(fn ($page) => $page->component('setup/Wizard'));
 });
 
 test('welcome page redirects to dashboard when setup is complete', function () {
     AppSetting::set('setup_completed', true);
 
-    $response = $this->get(route('setup.welcome'));
+    $response = $this->get(route('setup.wizard'));
 
     $response->assertRedirect(route('dashboard'));
 });
@@ -416,7 +416,7 @@ test('dashboard redirects to setup when setup is not complete', function () {
 
     $response = $this->get(route('dashboard'));
 
-    $response->assertRedirect(route('setup.welcome'));
+    $response->assertRedirect(route('setup.wizard'));
 });
 
 test('dashboard is accessible when setup is complete', function () {

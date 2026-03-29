@@ -88,9 +88,9 @@ class RoleController extends Controller
     {
         $this->authorize('role_edit');
 
-        // Prevent editing Super Admin role name
-        if ($role->name === 'Super Admin' && $request->name !== 'Super Admin') {
-            return back()->with('error', 'Cannot rename the Super Admin role.');
+        // Prevent editing Admin role name
+        if ($role->name === 'Admin' && $request->name !== 'Admin') {
+            return back()->with('error', 'Cannot rename the Admin role.');
         }
 
         $role->update([
@@ -113,9 +113,9 @@ class RoleController extends Controller
     {
         $this->authorize('role_delete');
 
-        // Prevent deletion of Super Admin role
-        if ($role->name === 'Super Admin') {
-            return back()->with('error', 'Cannot delete the Super Admin role.');
+        // Prevent deletion of Admin role
+        if ($role->name === 'Admin') {
+            return back()->with('error', 'Cannot delete the Admin role.');
         }
 
         // Check if role is in use

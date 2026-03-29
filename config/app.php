@@ -125,19 +125,6 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Super Admin Email
-    |--------------------------------------------------------------------------
-    |
-    | This email address is used to create the default Super Admin user during
-    | the initial database seeding process. Change this to the desired email
-    | for the Super Admin account.
-    |--------------------------------------------------------------------------
-    */
-    'super_admin_email' => env('SUPER_ADMIN_EMAIL', 'super@spaceworks.dev'),
-    'super_admin_password' => env('SUPER_ADMIN_PASSWORD', 'superPa55word!'),
-
-    /*
-    |--------------------------------------------------------------------------
     | Localization
     |--------------------------------------------------------------------------
     |

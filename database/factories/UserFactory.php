@@ -81,4 +81,12 @@ class UserFactory extends Factory
             'last_login_at' => now()->subMinutes(fake()->numberBetween(1, 60)),
         ]);
     }
+
+    /**
+     * Assign the Admin role after creation.
+     */
+    public function admin(): static
+    {
+        return $this->afterCreating(fn (User $user) => $user->assignRole('Admin'));
+    }
 }

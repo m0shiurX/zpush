@@ -6,6 +6,7 @@ use App\Concerns\PasswordValidationRules;
 use App\Concerns\ProfileValidationRules;
 use App\Models\User;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\ValidationException;
 use Laravel\Fortify\Contracts\CreatesNewUsers;
 
 class CreateNewUser implements CreatesNewUsers
@@ -15,16 +16,22 @@ class CreateNewUser implements CreatesNewUsers
     /**
      * Validate and create a newly registered user.
      *
+     * Only the first user can be created via registration (setup wizard).
+     *
      * @param  array<string, string>  $input
      */
     public function create(array $input): User
     {
+        if (User::exists()) {
+            throw ValidationException::withMessages([
+                'email' => ['Registration is disabled. Please contact an administrator.'],
+            ]);
+        }
+
         Validator::make($input, [
             ...$this->profileRules(),
             'password' => $this->passwordRules(),
         ])->validate();
-
-        $isFirstUser = User::count() === 0;
 
         $user = User::create([
             'name' => $input['name'],
@@ -32,11 +39,7 @@ class CreateNewUser implements CreatesNewUsers
             'password' => $input['password'],
         ]);
 
-        if ($isFirstUser) {
-            $user->assignRole('Super Admin');
-        } else {
-            $user->assignRole('Admin');
-        }
+        $user->assignRole('Admin');
 
         return $user;
     }

@@ -25,17 +25,17 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->configureDefaults();
-        $this->configureSuperAdmin();
+        $this->configureAdmin();
     }
 
     /**
-     * Super Admin implicitly has all permissions via Gate::before.
+     * Admin implicitly has all permissions via Gate::before.
      * This allows using standard Laravel can() checks throughout the app.
      */
-    protected function configureSuperAdmin(): void
+    protected function configureAdmin(): void
     {
         Gate::before(function ($user, $ability) {
-            return $user->hasRole('Super Admin') ? true : null;
+            return $user->hasRole('Admin') ? true : null;
         });
     }
 

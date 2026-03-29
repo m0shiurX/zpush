@@ -29,7 +29,7 @@ class SyncPermissionsCommand extends Command
     protected $description = 'Synchronize permissions from config/permissions.php to database';
 
     /**
-     * Permissions to exclude from non-super-admin roles.
+     * Permissions to exclude from non-admin roles.
      *
      * @var array<int, string>
      */
@@ -245,8 +245,7 @@ class SyncPermissionsCommand extends Command
     /**
      * Sync role-permission assignments.
      *
-     * - Super Admin bypasses permission checks via Gate::before
-     * - Admin gets all permissions except restricted ones
+     * - Admin bypasses permission checks via Gate::before
      * - Other roles get all permissions except restricted ones
      */
     protected function syncRolePermissions(): void
@@ -263,7 +262,7 @@ class SyncPermissionsCommand extends Command
             return;
         }
 
-        // Filter out restricted permissions for non-super-admin roles
+        // Filter out restricted permissions for non-admin roles
         $standardPermissions = $allPermissions->filter(function (Permission $permission): bool {
             foreach ($this->adminRestrictedPrefixes as $prefix) {
                 if (str_starts_with($permission->name, $prefix)) {
@@ -275,13 +274,9 @@ class SyncPermissionsCommand extends Command
         });
 
         foreach ($roles as $role) {
-            if ($role->name === 'Super Admin') {
-                // Super Admin uses Gate::before - no permissions needed
+            if ($role->name === 'Admin') {
+                // Admin uses Gate::before - no permissions needed
                 $this->line("  ✓ {$role->name}: bypasses all checks via Gate::before");
-            } elseif ($role->name === 'Admin') {
-                // Admin gets standard permissions (excluding restricted)
-                $role->syncPermissions($standardPermissions);
-                $this->line("  ✓ {$role->name}: synced {$standardPermissions->count()} permissions");
             } else {
                 // Other roles get standard permissions
                 $role->syncPermissions($standardPermissions);

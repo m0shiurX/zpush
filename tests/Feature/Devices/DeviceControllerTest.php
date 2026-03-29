@@ -508,7 +508,7 @@ test('device index redirects when setup not complete', function () {
 
     $this->actingAs($user)
         ->get(route('devices.index'))
-        ->assertRedirect(route('setup.welcome'));
+        ->assertRedirect(route('setup.wizard'));
 });
 
 // ==========================================

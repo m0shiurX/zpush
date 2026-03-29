@@ -67,9 +67,6 @@ class UserController extends Controller
     public function store(StoreUserRequest $request): RedirectResponse
     {
         $this->authorize('user_create');
-        $isFirstUser = User::count() === 0;
-        dd($request->toArray());
-
         $user = User::create([
             'name' => $request->name,
             'email' => $request->email,
@@ -77,13 +74,8 @@ class UserController extends Controller
             'status' => $request->status ?? UserStatus::Active,
         ]);
 
-        if ($isFirstUser) {
-            $user->assignRole('Super Admin');
-        } else {
-            if ($request->roles) {
-                $user->syncRoles($request->roles);
-            }
-
+        if ($request->roles) {
+            $user->syncRoles($request->roles);
         }
 
         return redirect()
@@ -145,9 +137,9 @@ class UserController extends Controller
             return back()->with('error', 'You cannot delete your own account.');
         }
 
-        // Prevent deletion of super admin
-        if ($user->hasRole('Super Admin')) {
-            return back()->with('error', 'Cannot delete Super Admin user.');
+        // Prevent deletion of admin
+        if ($user->hasRole('Admin')) {
+            return back()->with('error', 'Cannot delete Admin user.');
         }
 
         $user->delete();

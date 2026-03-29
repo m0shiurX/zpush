@@ -17,7 +17,7 @@ class EnsureSetupComplete
     public function handle(Request $request, Closure $next): Response
     {
         if (! AppSetting::isTrue('setup_completed')) {
-            return redirect()->route('setup.welcome');
+            return redirect()->route('setup.wizard');
         }
 
         return $next($request);

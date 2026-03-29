@@ -14,7 +14,7 @@ use Illuminate\Support\Facades\Route;
 |
 */
 
-Route::get('setup', [SetupController::class, 'welcome'])->name('setup.welcome');
+Route::get('setup', [SetupController::class, 'wizard'])->name('setup.wizard');
 Route::get('setup/device', [SetupController::class, 'device'])->name('setup.device');
 Route::post('setup/device/test', [SetupController::class, 'testDevice'])->name('setup.device.test');
 Route::post('setup/device', [SetupController::class, 'storeDevice'])->name('setup.device.store');

@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+
 import { Separator } from '@/components/ui/separator';
 import {
     AlertDialog,
@@ -36,7 +37,7 @@ import { show } from '@/routes/devices';
 import { test, poll, store, destroy, update } from '@/actions/App/Http/Controllers/DeviceController';
 import { ref } from 'vue';
 import axios from 'axios';
-import { MoreVertical, Wifi, WifiOff, RefreshCw, Zap, Activity, Clock, Database, Trash2 } from 'lucide-vue-next';
+import { MoreVertical, Wifi, WifiOff, RefreshCw, Zap, Activity, Clock, Database, Trash2,Pencil } from 'lucide-vue-next';
 
 interface Device {
     id: number;
@@ -279,6 +280,10 @@ function statusIcon(device: Device) {
                                         </Button>
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent align="end" class="w-48">
+                                        <DropdownMenuItem @click="openEditDialog">
+                                            <Pencil class="mr-1.5 h-3.5 w-3.5" />
+                                            Edit
+                                        </DropdownMenuItem>
                                         <DropdownMenuItem @click="handleToggleActive(device)">
                                             <component :is="device.is_active ? WifiOff : Wifi" class="mr-2 h-4 w-4" />
                                             {{ device.is_active ? 'Deactivate' : 'Activate' }}
@@ -421,6 +426,8 @@ function statusIcon(device: Device) {
                         </div>
                     </CardContent>
                 </Card>
+
+                
             </div>
         </div>
     </AppLayout>

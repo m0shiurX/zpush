@@ -1,20 +1,8 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue';
 import { Head, useForm, Link } from '@inertiajs/vue3';
-import InputError from '@/components/InputError.vue';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Spinner } from '@/components/ui/spinner';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
-import SetupLayout from '@/layouts/SetupLayout.vue';
+import axios from 'axios';
+import { CheckCircle, XCircle, Cloud, Building2 } from 'lucide-vue-next';
+import { ref, computed } from 'vue';
 import {
     device,
     storeCloud,
@@ -22,8 +10,20 @@ import {
     testCloud,
     fetchBranches,
 } from '@/actions/App/Http/Controllers/SetupController';
-import { CheckCircle, XCircle, Cloud, Building2 } from 'lucide-vue-next';
-import axios from 'axios';
+import InputError from '@/components/InputError.vue';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
+import { Spinner } from '@/components/ui/spinner';
+import SetupLayout from '@/layouts/SetupLayout.vue';
 
 interface Branch {
     id: number;

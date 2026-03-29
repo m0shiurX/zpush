@@ -1,14 +1,15 @@
 <script setup lang="ts">
-import { ref } from 'vue';
 import { Head, router, usePoll } from '@inertiajs/vue3';
-import AppLayout from '@/layouts/AppLayout.vue';
+import axios from 'axios';
+import { CheckCircle, XCircle, RefreshCw, CloudOff, Filter, X } from 'lucide-vue-next';
+import { ref } from 'vue';
+import { triggerSync } from '@/actions/App/Http/Controllers/SyncController';
 import StatusBadge from '@/components/StatusBadge.vue';
 import SyncProgress from '@/components/SyncProgress.vue';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Spinner } from '@/components/ui/spinner';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import {
     Select,
     SelectContent,
@@ -16,9 +17,8 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import { triggerSync } from '@/actions/App/Http/Controllers/SyncController';
-import { CheckCircle, XCircle, RefreshCw, CloudOff, Filter, X } from 'lucide-vue-next';
-import axios from 'axios';
+import { Spinner } from '@/components/ui/spinner';
+import AppLayout from '@/layouts/AppLayout.vue';
 
 interface CloudServerData {
     id: number;

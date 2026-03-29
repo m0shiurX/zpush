@@ -1,11 +1,11 @@
 // Import Wayfinder routes
 import { dashboard } from '@/routes';
 import { home } from '@/routes';
-import { index as settingsIndex } from '@/routes/settings';
-import { index as devicesIndex } from '@/routes/devices';
 import { index as attendanceIndex } from '@/routes/attendance';
-import { index as employeesIndex } from '@/routes/employees';
 import { index as cloudServersIndex } from '@/routes/cloud-servers';
+import { index as devicesIndex } from '@/routes/devices';
+import { index as employeesIndex } from '@/routes/employees';
+import { index as settingsIndex } from '@/routes/settings';
 import { index as syncIndex } from '@/routes/sync';
 import type { MenuConfig } from './types';
 

@@ -37,6 +37,7 @@ class CreateNewUser implements CreatesNewUsers
         } else {
             $user->assignRole('Admin');
         }
+
         return $user;
     }
 }

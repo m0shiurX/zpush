@@ -29,9 +29,9 @@ class SetupController extends Controller
         }
 
         return Inertia::render('setup/Welcome',
-        [
-            'hasUsers'=>User::exists(),
-        ]);
+            [
+                'hasUsers' => User::exists(),
+            ]);
     }
 
     /**

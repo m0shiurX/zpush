@@ -1,10 +1,10 @@
 <script setup lang="ts">
+import axios from 'axios';
+import { CheckCircle, XCircle, Wifi } from 'lucide-vue-next';
 import { ref } from 'vue';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { CheckCircle, XCircle, Wifi } from 'lucide-vue-next';
-import axios from 'axios';
 
 const props = defineProps<{
     url: string;

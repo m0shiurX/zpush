@@ -1,22 +1,8 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue';
 import { Head, useForm, router } from '@inertiajs/vue3';
-import AppLayout from '@/layouts/AppLayout.vue';
-import InputError from '@/components/InputError.vue';
-import StatusBadge from '@/components/StatusBadge.vue';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Spinner } from '@/components/ui/spinner';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
+import axios from 'axios';
+import { CheckCircle, XCircle, Cloud, Building2, Trash2, Upload, Download, Monitor } from 'lucide-vue-next';
+import { ref, computed } from 'vue';
 import {
     store,
     test,
@@ -26,8 +12,22 @@ import {
     syncToDevice,
     destroy,
 } from '@/actions/App/Http/Controllers/CloudServerController';
-import { CheckCircle, XCircle, Cloud, Building2, Trash2, Upload, Download, Monitor } from 'lucide-vue-next';
-import axios from 'axios';
+import InputError from '@/components/InputError.vue';
+import StatusBadge from '@/components/StatusBadge.vue';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
+import { Spinner } from '@/components/ui/spinner';
+import AppLayout from '@/layouts/AppLayout.vue';
 
 interface Branch {
     id: number;

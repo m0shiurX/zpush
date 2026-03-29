@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { Head, useForm } from '@inertiajs/vue3';
+import { CheckCircle } from 'lucide-vue-next';
+import { finalize } from '@/actions/App/Http/Controllers/SetupController';
+import StatusBadge from '@/components/StatusBadge.vue';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
-import StatusBadge from '@/components/StatusBadge.vue';
 import SetupLayout from '@/layouts/SetupLayout.vue';
-import { finalize } from '@/actions/App/Http/Controllers/SetupController';
-import { CheckCircle } from 'lucide-vue-next';
 
 interface DeviceConfig {
     id?: number;

@@ -67,7 +67,7 @@ class UserController extends Controller
     public function store(StoreUserRequest $request): RedirectResponse
     {
         $this->authorize('user_create');
-        $isFirstUser=User::count() === 0;
+        $isFirstUser = User::count() === 0;
         dd($request->toArray());
 
         $user = User::create([
@@ -77,15 +77,14 @@ class UserController extends Controller
             'status' => $request->status ?? UserStatus::Active,
         ]);
 
-        if($isFirstUser){
+        if ($isFirstUser) {
             $user->assignRole('Super Admin');
-        }else{
+        } else {
             if ($request->roles) {
                 $user->syncRoles($request->roles);
             }
-           
-        }
 
+        }
 
         return redirect()
             ->route('settings.users.index')

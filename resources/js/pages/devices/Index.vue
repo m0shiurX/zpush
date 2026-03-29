@@ -1,14 +1,11 @@
 <script setup lang="ts">
 import { Head, Link, router, useForm, usePoll } from '@inertiajs/vue3';
-import AppLayout from '@/layouts/AppLayout.vue';
+import axios from 'axios';
+import { MoreVertical, Wifi, WifiOff, RefreshCw, Zap, Activity, Clock, Database, Trash2,Pencil } from 'lucide-vue-next';
+import { ref } from 'vue';
+import { test, poll, store, destroy, update } from '@/actions/App/Http/Controllers/DeviceController';
 import InputError from '@/components/InputError.vue';
 import StatusBadge from '@/components/StatusBadge.vue';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-
-import { Separator } from '@/components/ui/separator';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -20,6 +17,8 @@ import {
     AlertDialogTitle,
     AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -27,17 +26,18 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+
+import { Separator } from '@/components/ui/separator';
 import {
     Tooltip,
     TooltipContent,
     TooltipProvider,
     TooltipTrigger,
 } from '@/components/ui/tooltip';
+import AppLayout from '@/layouts/AppLayout.vue';
 import { show } from '@/routes/devices';
-import { test, poll, store, destroy, update } from '@/actions/App/Http/Controllers/DeviceController';
-import { ref } from 'vue';
-import axios from 'axios';
-import { MoreVertical, Wifi, WifiOff, RefreshCw, Zap, Activity, Clock, Database, Trash2,Pencil } from 'lucide-vue-next';
 
 interface Device {
     id: number;

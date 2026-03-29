@@ -2,8 +2,8 @@
 import { usePage } from '@inertiajs/vue3';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 import Header from '@/components/header/Header.vue';
-import Sidebar from '@/components/sidebar/Sidebar.vue';
 import OfflineBanner from '@/components/OfflineBanner.vue';
+import Sidebar from '@/components/sidebar/Sidebar.vue';
 import {
     Dialog,
     DialogContent,

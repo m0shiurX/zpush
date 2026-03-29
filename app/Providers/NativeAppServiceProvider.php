@@ -45,7 +45,7 @@ class NativeAppServiceProvider implements ProvidesPhpIni
     public function phpIni(): array
     {
         $caPath = match (true) {
-            is_file($herd = $_SERVER['HOME'] . '/Library/Application Support/Herd/config/php/cacert.pem') => $herd,
+            is_file($herd = $_SERVER['HOME'].'/Library/Application Support/Herd/config/php/cacert.pem') => $herd,
             is_file('/etc/ssl/cert.pem') => '/etc/ssl/cert.pem',
             default => '',
         };

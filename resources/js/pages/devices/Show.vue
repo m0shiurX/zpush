@@ -1,14 +1,26 @@
 <script setup lang="ts">
 import { Head, Link, router, useForm, usePoll } from '@inertiajs/vue3';
-import AppLayout from '@/layouts/AppLayout.vue';
+import axios from 'axios';
+import {
+    Wifi, RefreshCw, Clock, Database, Activity, Settings, Trash2,
+    AlertTriangle, UserX, MoreVertical, Pencil, WifiOff
+} from 'lucide-vue-next';
+import { ref } from 'vue';
+import { test, poll, syncTime, clearAttendance, clearLocalAttendance, clearDeviceUsers, update } from '@/actions/App/Http/Controllers/DeviceController';
 import InputError from '@/components/InputError.vue';
 import StatusBadge from '@/components/StatusBadge.vue';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Separator } from '@/components/ui/separator';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
     Dialog,
     DialogContent,
@@ -25,30 +37,18 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import {
-    AlertDialog,
-    AlertDialogAction,
-    AlertDialogCancel,
-    AlertDialogContent,
-    AlertDialogDescription,
-    AlertDialogFooter,
-    AlertDialogHeader,
-    AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Separator } from '@/components/ui/separator';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
     Tooltip,
     TooltipContent,
     TooltipProvider,
     TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { test, poll, syncTime, clearAttendance, clearLocalAttendance, clearDeviceUsers, update } from '@/actions/App/Http/Controllers/DeviceController';
+import AppLayout from '@/layouts/AppLayout.vue';
 import { index as devicesIndex } from '@/routes/devices';
-import { ref } from 'vue';
-import axios from 'axios';
-import {
-    Wifi, RefreshCw, Clock, Database, Activity, Settings, Trash2,
-    AlertTriangle, UserX, MoreVertical, Pencil, WifiOff
-} from 'lucide-vue-next';
 
 interface DeviceDetail {
     id: number;

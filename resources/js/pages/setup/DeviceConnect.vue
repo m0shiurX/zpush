@@ -1,17 +1,17 @@
 <script setup lang="ts">
 import { Head, useForm, Link } from '@inertiajs/vue3';
-import InputError from '@/components/InputError.vue';
-import ConnectionTester from '@/components/ConnectionTester.vue';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Spinner } from '@/components/ui/spinner';
-import SetupLayout from '@/layouts/SetupLayout.vue';
 import {
     welcome,
     storeDevice,
     testDevice,
 } from '@/actions/App/Http/Controllers/SetupController';
+import ConnectionTester from '@/components/ConnectionTester.vue';
+import InputError from '@/components/InputError.vue';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Spinner } from '@/components/ui/spinner';
+import SetupLayout from '@/layouts/SetupLayout.vue';
 
 interface DeviceConfig {
     id?: number;

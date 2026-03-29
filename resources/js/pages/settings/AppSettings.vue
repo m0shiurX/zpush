@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { Head, useForm, usePage } from '@inertiajs/vue3';
-import AppLayout from '@/layouts/AppLayout.vue';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { CheckCircle, Settings, Clock, Globe, Database } from 'lucide-vue-next';
+import { update } from '@/actions/App/Http/Controllers/AppSettingsController';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Checkbox } from '@/components/ui/checkbox';
 import {
     Select,
     SelectContent,
@@ -13,9 +15,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { update } from '@/actions/App/Http/Controllers/AppSettingsController';
-import { CheckCircle, Settings, Clock, Globe, Database } from 'lucide-vue-next';
+import AppLayout from '@/layouts/AppLayout.vue';
 
 interface TimezoneOption {
     value: string;

@@ -28,7 +28,7 @@ export const menuConfig: MenuConfig = {
             titleKey: 'nav.main',
             icon: 'DashboardIcon',
             route: dashboard,
-            activePatterns: ['/dashboard','/devices', '/attendance', '/employees','/cloud-servers', '/sync'],
+            activePatterns: ['/dashboard','/devices', '/attendance', '/employees','/cloud-servers', '/sync','/settings*', '/account*'],
         },
         // Devices - Device management, attendance, employees
         // {

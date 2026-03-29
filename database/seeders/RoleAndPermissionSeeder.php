@@ -62,7 +62,7 @@ class RoleAndPermissionSeeder extends Seeder
 
         $this->syncPermissions();
         $this->createRoles();
-        $this->createDefaultSuperAdmin();
+        // $this->createDefaultSuperAdmin();
 
         // Refresh cache after seeding
         app()[PermissionRegistrar::class]->forgetCachedPermissions();
@@ -163,23 +163,23 @@ class RoleAndPermissionSeeder extends Seeder
     /**
      * Create the default Super Admin user.
      */
-    protected function createDefaultSuperAdmin(): void
-    {
-        $email = config('app.super_admin_email', 'admin@app.test');
+    // protected function createDefaultSuperAdmin(): void
+    // {
+    //     $email = config('app.super_admin_email', 'admin@app.test');
 
-        $user = User::firstOrCreate(
-            ['email' => $email],
-            [
-                'name' => 'Super Admin',
-                'password' => bcrypt(config('app.super_admin_password', 'password')),
-                'email_verified_at' => now(),
-            ]
-        );
+    //     $user = User::firstOrCreate(
+    //         ['email' => $email],
+    //         [
+    //             'name' => 'Super Admin',
+    //             'password' => bcrypt(config('app.super_admin_password', 'password')),
+    //             'email_verified_at' => now(),
+    //         ]
+    //     );
 
-        if (! $user->hasRole('Super Admin')) {
-            $user->assignRole('Super Admin');
-        }
+    //     if (! $user->hasRole('Super Admin')) {
+    //         $user->assignRole('Super Admin');
+    //     }
 
-        $this->command->info("  Default Super Admin: {$email}");
-    }
+    //     $this->command->info("  Default Super Admin: {$email}");
+    // }
 }

@@ -53,6 +53,9 @@ class ListenerCoordinator
                 $alias,
                 persistent: true,
             );
+
+            // Set cache immediately so isListening() returns true before the first listen cycle
+            Cache::put("device:{$device->id}:listening", true, 90);
         } catch (\Throwable $e) {
             Log::warning("ListenerCoordinator: Could not start [{$alias}]: {$e->getMessage()}");
         }

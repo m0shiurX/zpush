@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Models\DeviceConfig;
+use Illuminate\Support\Facades\Cache;
 use Native\Desktop\Contracts\ProvidesPhpIni;
 use Native\Desktop\Facades\ChildProcess;
 use Native\Desktop\Facades\Window;
@@ -36,6 +37,8 @@ class NativeAppServiceProvider implements ProvidesPhpIni
                 "device-listener-{$device->id}",
                 persistent: true,
             );
+
+            Cache::put("device:{$device->id}:listening", true, 90);
         }
     }
 
@@ -45,7 +48,7 @@ class NativeAppServiceProvider implements ProvidesPhpIni
     public function phpIni(): array
     {
         $caPath = match (true) {
-            is_file($herd = $_SERVER['HOME'].'/Library/Application Support/Herd/config/php/cacert.pem') => $herd,
+            is_file($herd = $_SERVER['HOME'] . '/Library/Application Support/Herd/config/php/cacert.pem') => $herd,
             is_file('/etc/ssl/cert.pem') => '/etc/ssl/cert.pem',
             default => '',
         };

@@ -22,8 +22,8 @@ defineProps<{
                 <Card class="rounded-xl">
                     <CardHeader class="flex flex-col items-center justify-center gap-y-4 px-10 pt-8 pb-0 text-center">
                         <Link :href="home()" class="flex items-center gap-2 self-center font-medium">
-                            <div class="flex h-9 w-9 items-center justify-center">
-                                <AppLogoIcon class="size-9 fill-current text-black dark:text-white" />
+                            <div class="flex h-16 aspect-video items-center justify-center">
+                                <AppLogoIcon class=" fill-current text-black dark:text-white" />
                             </div>
                         </Link>
                         <CardTitle class="text-xl">{{ title }}</CardTitle>

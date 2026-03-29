@@ -59,20 +59,6 @@ const user = page.props.auth.user;
             <!-- MOBILE VIEW: Compact List Layout          -->
             <!-- ========================================== -->
             <div class="space-y-3 sm:hidden">
-                <!-- Business Section -->
-                <div class="overflow-hidden rounded-xl border border-gray-200 bg-white">
-                    <div class="border-b border-gray-100 bg-gray-50 px-3 py-2">
-                        <h2 class="text-[10px] font-semibold tracking-wider text-gray-500 uppercase">
-                            Business
-                        </h2>
-                    </div>
-                    <div class="divide-y divide-gray-100">
-                        <SettingsListItem title="Company Profile" href="/settings/company" icon="building" color="blue"
-                            :disabled="true" :comingSoon="true" />
-                        <SettingsListItem title="Invoice Settings" href="/settings/invoice" icon="document" color="blue"
-                            :disabled="true" :comingSoon="true" />
-                    </div>
-                </div>
 
                 <!-- Access Control Section -->
                 <div class="overflow-hidden rounded-xl border border-gray-200 bg-white">
@@ -98,12 +84,9 @@ const user = page.props.auth.user;
                     <div class="divide-y divide-gray-100">
                         <SettingsListItem title="App Settings" href="/settings/app" icon="database"
                             color="orange" />
-                        <SettingsListItem title="Backup & Restore" href="/settings/backups" icon="database"
-                            color="orange" :disabled="true" :comingSoon="true" />
                         <SettingsListItem title="Activity Logs" href="/settings/activity-logs" icon="clipboard"
                             color="orange" :disabled="true" :comingSoon="true" />
-                        <SettingsListItem title="Notifications" href="/settings/notifications" icon="bell"
-                            color="orange" :disabled="true" :comingSoon="true" />
+                        
                     </div>
                 </div>
             </div>
@@ -112,21 +95,7 @@ const user = page.props.auth.user;
             <!-- DESKTOP VIEW: Card Grid Layout            -->
             <!-- ========================================== -->
             <div class="hidden space-y-6 sm:block">
-                <!-- Business Section -->
-                <section>
-                    <div class="mb-3 flex items-center gap-2">
-                        <div class="h-4 w-1 rounded-full bg-blue-500"></div>
-                        <h2 class="text-xs font-semibold tracking-wider text-gray-500 uppercase">
-                            Business
-                        </h2>
-                    </div>
-                    <div class="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-4">
-                        <SettingsCard title="Company Profile" description="Business name, logo, and contact info"
-                            href="/settings/company" icon="building" color="blue" :disabled="true" :comingSoon="true" />
-                        <SettingsCard title="Invoice Settings" description="Configure invoice templates and numbering"
-                            href="/settings/invoice" icon="document" color="blue" :disabled="true" :comingSoon="true" />
-                    </div>
-                </section>
+                
 
                 <!-- Access Control Section -->
                 <section>
@@ -157,15 +126,11 @@ const user = page.props.auth.user;
                     <div class="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-4">
                         <SettingsCard title="App Settings" description="Sync intervals, timezone & retention"
                             href="/settings/app" icon="database" color="orange" />
-                        <SettingsCard title="Backup & Restore" description="Manage database backups"
-                            href="/settings/backups" icon="database" color="orange" :disabled="true"
-                            :comingSoon="true" />
+                       
                         <SettingsCard title="Activity Logs" description="View system audit trail"
                             href="/settings/activity-logs" icon="clipboard" color="orange" :disabled="true"
                             :comingSoon="true" />
-                        <SettingsCard title="Notifications" description="Configure alert preferences"
-                            href="/settings/notifications" icon="bell" color="orange" :disabled="true"
-                            :comingSoon="true" />
+                      
                     </div>
                 </section>
             </div>

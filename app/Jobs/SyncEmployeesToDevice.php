@@ -6,9 +6,11 @@ use App\Exceptions\DeviceConnectionException;
 use App\Models\DeviceConfig;
 use App\Models\Employee;
 use App\Services\DeviceService;
+use App\Services\ListenerCoordinator;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
 
 class SyncEmployeesToDevice implements ShouldBeUnique, ShouldQueue
@@ -48,7 +50,7 @@ class SyncEmployeesToDevice implements ShouldBeUnique, ShouldQueue
     /**
      * Execute the job.
      */
-    public function handle(DeviceService $service): void
+    public function handle(DeviceService $service, ListenerCoordinator $coordinator): void
     {
         $devices = $this->deviceId
             ? DeviceConfig::where('id', $this->deviceId)->active()->get()
@@ -60,9 +62,8 @@ class SyncEmployeesToDevice implements ShouldBeUnique, ShouldQueue
             return;
         }
 
-        // Get employees that need to be synced to devices
-        // (have cloud_id but no device_uid, or device_synced_at < cloud_synced_at)
-        $employees = Employee::query()
+        // Employees to add or update on the device
+        $employeesToSync = Employee::query()
             ->active()
             ->where(function ($query) {
                 $query->whereNull('device_synced_at')
@@ -70,47 +71,86 @@ class SyncEmployeesToDevice implements ShouldBeUnique, ShouldQueue
             })
             ->get();
 
-        if ($employees->isEmpty()) {
-            Log::info('SyncEmployeesToDevice: No employees need syncing.');
+        // Inactive employees that still have a device_uid (need removal from device)
+        $employeesToRemove = Employee::query()
+            ->where('is_active', false)
+            ->whereNotNull('device_uid')
+            ->whereNotNull('device_synced_at')
+            ->get();
+
+        if ($employeesToSync->isEmpty() && $employeesToRemove->isEmpty()) {
+            Log::info('SyncEmployeesToDevice: No employees need syncing or removal.');
 
             return;
         }
 
         foreach ($devices as $device) {
-            try {
-                $synced = 0;
-                $failed = 0;
+            $coordinator->withPausedListener($device, function () use ($device, $service, $employeesToSync, $employeesToRemove) {
+                $this->syncDevice($device, $service, $employeesToSync, $employeesToRemove);
+            });
+        }
+    }
 
-                foreach ($employees as $employee) {
-                    try {
-                        // Assign device_uid if not set
-                        if (! $employee->device_uid) {
-                            $employee->device_uid = $this->allocateDeviceUid();
-                            $employee->save();
-                        }
+    /**
+     * Perform the actual sync for a single device: remove inactive, add/update active.
+     *
+     * @param  Collection<int, Employee>  $employeesToSync
+     * @param  Collection<int, Employee>  $employeesToRemove
+     */
+    private function syncDevice(
+        DeviceConfig $device,
+        DeviceService $service,
+        $employeesToSync,
+        $employeesToRemove,
+    ): void {
+        $synced = 0;
+        $removed = 0;
+        $failed = 0;
 
-                        $success = $service->addUserToDevice($device, $employee);
+        try {
+            // Phase 1: Remove deactivated employees from the device
+            foreach ($employeesToRemove as $employee) {
+                try {
+                    $service->removeUserFromDevice($device, $employee->device_uid);
+                    $employee->update(['device_synced_at' => null]);
+                    $removed++;
+                } catch (\Throwable $e) {
+                    Log::warning("SyncEmployeesToDevice: Failed to remove [{$employee->name}] from [{$device->name}]", [
+                        'error' => $e->getMessage(),
+                    ]);
+                    $failed++;
+                }
+            }
 
-                        if ($success) {
-                            $employee->update(['device_synced_at' => now()]);
-                            $synced++;
-                        } else {
-                            $failed++;
-                        }
-                    } catch (\Throwable $e) {
-                        Log::warning("SyncEmployeesToDevice: Failed to sync employee [{$employee->name}] to [{$device->name}]", [
-                            'error' => $e->getMessage(),
-                        ]);
+            // Phase 2: Add or update active employees on the device
+            foreach ($employeesToSync as $employee) {
+                try {
+                    if (! $employee->device_uid) {
+                        $employee->device_uid = $this->allocateDeviceUid();
+                        $employee->save();
+                    }
+
+                    $success = $service->addUserToDevice($device, $employee);
+
+                    if ($success) {
+                        $employee->update(['device_synced_at' => now()]);
+                        $synced++;
+                    } else {
                         $failed++;
                     }
+                } catch (\Throwable $e) {
+                    Log::warning("SyncEmployeesToDevice: Failed to sync [{$employee->name}] to [{$device->name}]", [
+                        'error' => $e->getMessage(),
+                    ]);
+                    $failed++;
                 }
-
-                Log::info("SyncEmployeesToDevice [{$device->name}]: {$synced} synced, {$failed} failed.");
-            } catch (DeviceConnectionException $e) {
-                Log::warning("SyncEmployeesToDevice [{$device->name}]: Connection failed — {$e->getMessage()}");
-            } finally {
-                $service->disconnect();
             }
+
+            Log::info("SyncEmployeesToDevice [{$device->name}]: {$synced} synced, {$removed} removed, {$failed} failed.");
+        } catch (DeviceConnectionException $e) {
+            Log::warning("SyncEmployeesToDevice [{$device->name}]: Connection failed — {$e->getMessage()}");
+        } finally {
+            $service->disconnect();
         }
     }
 

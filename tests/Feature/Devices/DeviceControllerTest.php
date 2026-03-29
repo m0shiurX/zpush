@@ -8,6 +8,7 @@ use App\Models\DeviceConfig;
 use App\Models\Employee;
 use App\Models\User;
 use App\Services\DeviceService;
+use App\Services\ListenerCoordinator;
 use Illuminate\Support\Facades\Queue;
 
 beforeEach(function () {
@@ -427,6 +428,11 @@ test('clear device users removes all users from device', function () {
         'device_synced_at' => now(),
     ]);
 
+    $coordinatorMock = $this->mock(ListenerCoordinator::class);
+    $coordinatorMock->shouldReceive('withPausedListener')
+        ->once()
+        ->andReturnUsing(fn($d, $callback) => $callback());
+
     $mock = $this->mock(DeviceService::class);
     $mock->shouldReceive('removeAllUsersFromDevice')
         ->once()
@@ -450,6 +456,11 @@ test('clear device users removes all users from device', function () {
 test('clear device users handles connection error', function () {
     $user = User::factory()->create();
     $device = DeviceConfig::factory()->create();
+
+    $coordinatorMock = $this->mock(ListenerCoordinator::class);
+    $coordinatorMock->shouldReceive('withPausedListener')
+        ->once()
+        ->andReturnUsing(fn($d, $callback) => $callback());
 
     $mock = $this->mock(DeviceService::class);
     $mock->shouldReceive('removeAllUsersFromDevice')
@@ -478,6 +489,11 @@ test('sync time sets device time and returns success', function () {
     $user = User::factory()->create();
     $device = DeviceConfig::factory()->create();
 
+    $coordinatorMock = $this->mock(ListenerCoordinator::class);
+    $coordinatorMock->shouldReceive('withPausedListener')
+        ->once()
+        ->andReturnUsing(fn($d, $callback) => $callback());
+
     $mock = $this->mock(DeviceService::class);
     $mock->shouldReceive('syncTime')
         ->once()
@@ -500,6 +516,11 @@ test('sync time sets device time and returns success', function () {
 test('sync time returns error on connection failure', function () {
     $user = User::factory()->create();
     $device = DeviceConfig::factory()->create();
+
+    $coordinatorMock = $this->mock(ListenerCoordinator::class);
+    $coordinatorMock->shouldReceive('withPausedListener')
+        ->once()
+        ->andReturnUsing(fn($d, $callback) => $callback());
 
     $mock = $this->mock(DeviceService::class);
     $mock->shouldReceive('syncTime')
@@ -636,6 +657,9 @@ test('destroy deletes device and its attendance logs', function () {
     $device = DeviceConfig::factory()->create();
     AttendanceLog::factory()->count(5)->create(['device_id' => $device->id]);
 
+    $coordinatorMock = $this->mock(ListenerCoordinator::class);
+    $coordinatorMock->shouldReceive('stopListener')->once();
+
     $this->actingAs($user)
         ->delete(route('devices.destroy', $device))
         ->assertRedirect(route('devices.index'));
@@ -650,6 +674,9 @@ test('destroy does not affect other device attendance logs', function () {
     $device2 = DeviceConfig::factory()->create();
     AttendanceLog::factory()->count(3)->create(['device_id' => $device1->id]);
     AttendanceLog::factory()->count(4)->create(['device_id' => $device2->id]);
+
+    $coordinatorMock = $this->mock(ListenerCoordinator::class);
+    $coordinatorMock->shouldReceive('stopListener')->once();
 
     $this->actingAs($user)
         ->delete(route('devices.destroy', $device1))

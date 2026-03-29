@@ -128,7 +128,7 @@ class SyncEmployeesFromCloud implements ShouldBeUnique, ShouldQueue
 
         Log::info("SyncEmployeesFromCloud: Done — {$created} created, {$updated} updated, {$deactivated} deactivated.");
 
-        if ($created > 0 || $updated > 0) {
+        if ($created > 0 || $updated > 0 || $deactivated > 0) {
             SyncEmployeesToDevice::dispatch();
         }
     }

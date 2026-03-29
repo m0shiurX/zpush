@@ -133,6 +133,8 @@ test('does not update employee when hash matches', function () {
 });
 
 test('full sync deactivates employees not in cloud response', function () {
+    Queue::fake();
+
     $keepEmployee = Employee::factory()->create([
         'cloud_id' => 1,
         'employee_code' => 'KEEP-001',
@@ -173,6 +175,8 @@ test('full sync deactivates employees not in cloud response', function () {
 
     expect($keepEmployee->is_active)->toBeTrue()
         ->and($removeEmployee->is_active)->toBeFalse();
+
+    Queue::assertPushed(SyncEmployeesToDevice::class);
 });
 
 test('skips when no active cloud server with branch', function () {

@@ -9,6 +9,7 @@ use App\Models\AttendanceLog;
 use App\Models\DeviceConfig;
 use App\Models\Employee;
 use App\Services\DeviceService;
+use App\Services\ListenerCoordinator;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
@@ -194,10 +195,14 @@ class DeviceController extends Controller
     /**
      * Clear all users from the physical device.
      */
-    public function clearDeviceUsers(DeviceConfig $device, DeviceService $service): JsonResponse
+    public function clearDeviceUsers(DeviceConfig $device, DeviceService $service, ListenerCoordinator $coordinator): JsonResponse
     {
         try {
-            $removed = $service->removeAllUsersFromDevice($device);
+            set_time_limit(60);
+
+            $removed = $coordinator->withPausedListener($device, function () use ($device, $service) {
+                return $service->removeAllUsersFromDevice($device);
+            });
 
             Employee::whereNotNull('device_synced_at')
                 ->update(['device_synced_at' => null]);
@@ -222,19 +227,14 @@ class DeviceController extends Controller
     /**
      * Sync the server's date/time to the device (AJAX).
      */
-    public function syncTime(DeviceConfig $device, DeviceService $service): JsonResponse
+    public function syncTime(DeviceConfig $device, DeviceService $service, ListenerCoordinator $coordinator): JsonResponse
     {
-        if ($device->isListening()) {
-            return response()->json([
-                'success' => false,
-                'error' => 'Cannot sync time while the listener is connected. Stop the listener first.',
-            ]);
-        }
-
         try {
-            set_time_limit(15);
+            set_time_limit(30);
 
-            $result = $service->syncTime($device);
+            $result = $coordinator->withPausedListener($device, function () use ($device, $service) {
+                return $service->syncTime($device);
+            });
 
             return response()->json($result);
         } catch (\Throwable $e) {
@@ -268,10 +268,66 @@ class DeviceController extends Controller
     }
 
     /**
+     * Stop the listener for a device (AJAX).
+     */
+    public function stopListener(DeviceConfig $device, ListenerCoordinator $coordinator): JsonResponse
+    {
+        $coordinator->stopListener($device);
+
+        return response()->json([
+            'success' => true,
+            'message' => "Listener stopped for {$device->name}.",
+        ]);
+    }
+
+    /**
+     * Start the listener for a device (AJAX).
+     */
+    public function startListener(DeviceConfig $device, ListenerCoordinator $coordinator): JsonResponse
+    {
+        if (! $device->isRealtime()) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Device is not configured for real-time listening.',
+            ]);
+        }
+
+        $coordinator->startListener($device);
+
+        return response()->json([
+            'success' => true,
+            'message' => "Listener started for {$device->name}.",
+        ]);
+    }
+
+    /**
+     * Restart the listener for a device (AJAX).
+     */
+    public function restartListener(DeviceConfig $device, ListenerCoordinator $coordinator): JsonResponse
+    {
+        if (! $device->isRealtime()) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Device is not configured for real-time listening.',
+            ]);
+        }
+
+        $coordinator->stopListener($device);
+        $coordinator->startListener($device);
+
+        return response()->json([
+            'success' => true,
+            'message' => "Listener restarted for {$device->name}.",
+        ]);
+    }
+
+    /**
      * Delete a device and its local attendance records.
      */
-    public function destroy(DeviceConfig $device): RedirectResponse
+    public function destroy(DeviceConfig $device, ListenerCoordinator $coordinator): RedirectResponse
     {
+        $coordinator->stopListener($device);
+
         AttendanceLog::where('device_id', $device->id)->delete();
         $device->delete();
 

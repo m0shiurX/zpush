@@ -20,6 +20,9 @@ Route::middleware(['auth', 'verified', 'setup.complete'])->group(function () {
     Route::delete('devices/{device}/clear-attendance', [DeviceController::class, 'clearAttendance'])->name('devices.clear-attendance');
     Route::delete('devices/{device}/clear-local-attendance', [DeviceController::class, 'clearLocalAttendance'])->name('devices.clear-local-attendance');
     Route::delete('devices/{device}/clear-device-users', [DeviceController::class, 'clearDeviceUsers'])->name('devices.clear-device-users');
+    Route::post('devices/{device}/listener/start', [DeviceController::class, 'startListener'])->name('devices.listener.start');
+    Route::post('devices/{device}/listener/stop', [DeviceController::class, 'stopListener'])->name('devices.listener.stop');
+    Route::post('devices/{device}/listener/restart', [DeviceController::class, 'restartListener'])->name('devices.listener.restart');
 
     // Attendance
     Route::get('attendance', [AttendanceController::class, 'index'])->name('attendance.index');

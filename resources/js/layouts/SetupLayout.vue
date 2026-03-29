@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Link } from '@inertiajs/vue3';
-import AppLogoIcon from '@/components/AppLogoIcon.vue';
 import { computed } from 'vue';
+import AppLogoIcon from '@/components/AppLogoIcon.vue';
 
 const props = defineProps<{
     currentStep: number;
@@ -12,7 +12,7 @@ const props = defineProps<{
 const totalSteps = 4;
 
 const steps = [
-    { number: 1, label: 'Welcome' },
+    { number: 1, label: 'Register' },
     { number: 2, label: 'Device' },
     { number: 3, label: 'Cloud' },
     { number: 4, label: 'Complete' },
@@ -28,8 +28,8 @@ const progressPercent = computed(() => {
         <div class="flex w-full max-w-2xl flex-col gap-6">
             <!-- Logo -->
             <div class="flex items-center justify-center">
-                <div class="flex h-10 w-10 items-center justify-center">
-                    <AppLogoIcon class="size-10 fill-current text-primary" />
+                <div class="flex h-20 aspect-video items-center justify-center">
+                    <AppLogoIcon class=" fill-current text-primary" />
                 </div>
             </div>
 
@@ -68,8 +68,8 @@ const progressPercent = computed(() => {
             </nav>
 
             <!-- Content card -->
-            <div class="rounded-xl border bg-card text-card-foreground shadow-sm">
-                <div class="flex flex-col gap-1.5 px-8 pt-8 pb-0 text-center">
+            <div class="rounded-xl border bg-card text-card-foreground  py-2 shadow-sm">
+                <div class="flex flex-col gap-1.5 px-8 pt-8 pb-0 p-10 text-center">
                     <h2 class="text-xl font-semibold tracking-tight">{{ title }}</h2>
                     <p v-if="description" class="text-sm text-muted-foreground">{{ description }}</p>
                 </div>

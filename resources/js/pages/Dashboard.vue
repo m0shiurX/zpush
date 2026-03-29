@@ -1,18 +1,18 @@
 <script setup lang="ts">
-import { ref } from 'vue';
 import { Head, Link } from '@inertiajs/vue3';
-import AppLayout from '@/layouts/AppLayout.vue';
-import StatusBadge from '@/components/StatusBadge.vue';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Spinner } from '@/components/ui/spinner';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { index as devicesIndex } from '@/routes/devices';
-import { index as attendanceIndex } from '@/routes/attendance';
-import { index as employeesIndex } from '@/routes/employees';
-import { triggerSync } from '@/actions/App/Http/Controllers/SyncController';
-import { Cloud, CheckCircle, XCircle } from 'lucide-vue-next';
 import axios from 'axios';
+import { Cloud, CheckCircle, XCircle } from 'lucide-vue-next';
+import { ref } from 'vue';
+import { triggerSync } from '@/actions/App/Http/Controllers/SyncController';
+import StatusBadge from '@/components/StatusBadge.vue';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Spinner } from '@/components/ui/spinner';
+import AppLayout from '@/layouts/AppLayout.vue';
+import { index as attendanceIndex } from '@/routes/attendance';
+import { index as devicesIndex } from '@/routes/devices';
+import { index as employeesIndex } from '@/routes/employees';
 
 interface DeviceSummary {
     id: number;

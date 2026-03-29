@@ -8,6 +8,7 @@ use App\Http\Requests\Setup\TestDeviceConnectionRequest;
 use App\Models\AppSetting;
 use App\Models\CloudServer;
 use App\Models\DeviceConfig;
+use App\Models\User;
 use App\Services\CloudApiService;
 use App\Services\DeviceService;
 use Illuminate\Http\JsonResponse;
@@ -27,7 +28,10 @@ class SetupController extends Controller
             return redirect()->route('dashboard');
         }
 
-        return Inertia::render('setup/Welcome');
+        return Inertia::render('setup/Welcome',
+        [
+            'hasUsers'=>User::exists(),
+        ]);
     }
 
     /**

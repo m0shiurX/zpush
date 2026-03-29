@@ -62,7 +62,7 @@ const handleSectionClick = (section: {
     <div class="flex w-20 min-w-20 flex-col items-center bg-sidebar py-2">
         <!-- Logo -->
         <Link href="/dashboard" class="mb-2 flex h-14 w-14 items-center justify-center">
-            <div class="bg-sidebar-primary flex h-10 w-10 items-center justify-center rounded-lg">
+            <div class="bg-white flex h-10 w-10 items-center justify-center rounded-lg">
                 <AppLogoIcon class="size-6 text-white" />
             </div>
         </Link>

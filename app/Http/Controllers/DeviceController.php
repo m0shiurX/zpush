@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Exceptions\DeviceConnectionException;
 use App\Http\Requests\StoreDeviceRequest;
 use App\Http\Requests\UpdateDeviceRequest;
 use App\Jobs\SyncEmployeesToDevice;
@@ -142,6 +143,11 @@ class DeviceController extends Controller
                 'success' => true,
                 'users_synced' => $users->count(),
                 ...$result,
+            ]);
+        } catch (DeviceConnectionException $e) {
+            return response()->json([
+                'success' => false,
+                'error' => $e->getMessage(),
             ]);
         } catch (\Throwable $e) {
             return response()->json([

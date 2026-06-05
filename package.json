@@ -27,14 +27,14 @@
         "prettier-plugin-tailwindcss": "^0.7.2",
         "typescript": "^5.9.3",
         "typescript-eslint": "^8.54.0",
-        "vite": "^8.0.0",
+        "vite": "^8.0.16",
         "vue-tsc": "^3.2.4"
     },
     "dependencies": {
         "@inertiajs/vue3": "^3.0.0",
         "@tanstack/vue-table": "^8.21.3",
         "@vueuse/core": "^14.2.0",
-        "axios": "^1.13.6",
+        "axios": "^1.17.0",
         "class-variance-authority": "^0.7.1",
         "clsx": "^2.1.1",
         "laravel-vite-plugin": "^3.0.0",

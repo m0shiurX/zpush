@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\PunchType;
 use Database\Factories\AttendanceLogFactory;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -15,10 +16,11 @@ class AttendanceLog extends Model
 
     protected $fillable = [
         'employee_id',
-        'device_uid',
+        'device_user_id',
         'device_id',
         'timestamp',
         'punch_type',
+        'is_quarantined',
         'cloud_synced',
         'cloud_synced_at',
         'cloud_sync_attempts',
@@ -33,7 +35,8 @@ class AttendanceLog extends Model
     protected function casts(): array
     {
         return [
-            'device_uid' => 'integer',
+            'device_user_id' => 'string',
+            'is_quarantined' => 'boolean',
             'timestamp' => 'datetime',
             'punch_type' => PunchType::class,
             'cloud_synced' => 'boolean',
@@ -90,13 +93,13 @@ class AttendanceLog extends Model
     /**
      * Build the payload for cloud sync.
      *
-     * @return array{employee_code: string|null, device_uid: int, timestamp: string, punch_type: int, device_name: string|null}
+     * @return array{employee_code: string|null, device_user_id: string, timestamp: string, punch_type: int, device_name: string|null}
      */
     public function toSyncPayload(): array
     {
         return [
             'employee_code' => $this->employee?->employee_code,
-            'device_uid' => $this->device_uid,
+            'device_user_id' => $this->device_user_id,
             'timestamp' => $this->timestamp->toISOString(),
             'punch_type' => $this->getRawOriginal('punch_type'),
             'device_name' => $this->device?->name,
@@ -109,10 +112,22 @@ class AttendanceLog extends Model
 
     /**
      * Scope to filter unsynced attendance logs.
+     *
+     * Quarantined records are excluded: their device timestamp is known to be
+     * wrong, and pushing a punch dated 2000 into the cloud's attendance reports
+     * is worse than not pushing it at all.
      */
-    public function scopeUnsynced($query)
+    public function scopeUnsynced(Builder $query): Builder
     {
-        return $query->where('cloud_synced', false);
+        return $query->where('cloud_synced', false)->where('is_quarantined', false);
+    }
+
+    /**
+     * Scope to records held back because their device timestamp is untrusted.
+     */
+    public function scopeQuarantined(Builder $query): Builder
+    {
+        return $query->where('is_quarantined', true);
     }
 
     /**

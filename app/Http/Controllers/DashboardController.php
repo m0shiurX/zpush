@@ -35,7 +35,7 @@ class DashboardController extends Controller
             ->get()
             ->map(fn (AttendanceLog $log) => [
                 'id' => $log->id,
-                'employee_name' => $log->employee?->name ?? "UID {$log->device_uid}",
+                'employee_name' => $log->employee?->name ?? "UID {$log->device_user_id}",
                 'employee_code' => $log->employee?->employee_code,
                 'timestamp' => $log->timestamp->toISOString(),
                 'punch_type' => $log->punch_type->value,

@@ -20,7 +20,8 @@ class EmployeeFactory extends Factory
     public function definition(): array
     {
         return [
-            'device_uid' => fake()->unique()->numberBetween(1, 9999),
+            'device_user_id' => (string) ($slot = fake()->unique()->numberBetween(1, 9999)),
+            'device_slot_uid' => $slot,
             'name' => fake()->name(),
             'employee_code' => fake()->unique()->numerify('EMP-####'),
             'card_number' => (string) fake()->optional(0.5)->numberBetween(1000000, 9999999),

@@ -52,7 +52,7 @@ test('dashboard shows today punch count', function () {
         AttendanceLog::factory()->create([
             'employee_id' => $employee->id,
             'device_id' => $device->id,
-            'device_uid' => $employee->device_uid,
+            'device_user_id' => $employee->device_user_id,
             'timestamp' => now()->addSeconds($i),
         ]);
     }
@@ -78,7 +78,7 @@ test('dashboard shows employee and unsynced counts', function () {
         AttendanceLog::factory()->create([
             'employee_id' => $employees[$i]->id,
             'device_id' => $device->id,
-            'device_uid' => $employees[$i]->device_uid,
+            'device_user_id' => $employees[$i]->device_user_id,
             'cloud_synced' => false,
         ]);
     }

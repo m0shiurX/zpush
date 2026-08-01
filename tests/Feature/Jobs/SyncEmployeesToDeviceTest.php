@@ -12,14 +12,14 @@ beforeEach(function () {
     // Mock ListenerCoordinator to just execute the callback directly (no NativePHP runtime in tests)
     $coordinatorMock = Mockery::mock(ListenerCoordinator::class);
     $coordinatorMock->shouldReceive('withPausedListener')
-        ->andReturnUsing(fn($device, $callback) => $callback());
+        ->andReturnUsing(fn ($device, $callback) => $callback());
 
     app()->instance(ListenerCoordinator::class, $coordinatorMock);
 });
 
 test('syncs employees that need device sync', function () {
     $employee = Employee::factory()->synced()->create([
-        'device_uid' => 1,
+        'device_user_id' => 1,
         'device_synced_at' => null,
     ]);
 
@@ -27,8 +27,8 @@ test('syncs employees that need device sync', function () {
     $mock->shouldReceive('addUserToDevice')
         ->once()
         ->with(
-            Mockery::on(fn($d) => $d->id === $this->device->id),
-            Mockery::on(fn($e) => $e->id === $employee->id),
+            Mockery::on(fn ($d) => $d->id === $this->device->id),
+            Mockery::on(fn ($e) => $e->id === $employee->id),
         )
         ->andReturn(true);
     $mock->shouldReceive('disconnect')->once();
@@ -44,7 +44,7 @@ test('syncs employees that need device sync', function () {
 
 test('skips employees already synced to device', function () {
     Employee::factory()->synced()->create([
-        'device_uid' => 1,
+        'device_user_id' => 1,
         'cloud_synced_at' => now()->subHour(),
         'device_synced_at' => now(),
     ]);
@@ -76,9 +76,9 @@ test('skips when no active devices found', function () {
     app()->call([$job, 'handle']);
 });
 
-test('allocates device_uid when not set', function () {
+test('allocates device_user_id when not set', function () {
     $employee = Employee::factory()->synced()->create([
-        'device_uid' => null,
+        'device_user_id' => null,
         'device_synced_at' => null,
     ]);
 
@@ -92,13 +92,13 @@ test('allocates device_uid when not set', function () {
     app()->call([$job, 'handle']);
 
     $employee->refresh();
-    expect($employee->device_uid)->not->toBeNull()
-        ->and($employee->device_uid)->toBeGreaterThan(0);
+    expect($employee->device_user_id)->not->toBeNull()
+        ->and($employee->device_user_id)->toBeGreaterThan(0);
 });
 
 test('does not update device_synced_at when addUserToDevice fails', function () {
     $employee = Employee::factory()->synced()->create([
-        'device_uid' => 1,
+        'device_user_id' => 1,
         'device_synced_at' => null,
     ]);
 
@@ -117,7 +117,8 @@ test('does not update device_synced_at when addUserToDevice fails', function () 
 
 test('removes deactivated employees from device', function () {
     $inactiveEmployee = Employee::factory()->synced()->inactive()->create([
-        'device_uid' => 5,
+        'device_user_id' => '5',
+        'device_slot_uid' => 5,
         'device_synced_at' => now()->subDay(),
     ]);
 
@@ -125,7 +126,7 @@ test('removes deactivated employees from device', function () {
     $mock->shouldReceive('removeUserFromDevice')
         ->once()
         ->with(
-            Mockery::on(fn($d) => $d->id === $this->device->id),
+            Mockery::on(fn ($d) => $d->id === $this->device->id),
             5,
         )
         ->andReturn(true);
@@ -143,12 +144,12 @@ test('removes deactivated employees from device', function () {
 
 test('removes deactivated and syncs new employees in one pass', function () {
     $inactiveEmployee = Employee::factory()->synced()->inactive()->create([
-        'device_uid' => 3,
+        'device_user_id' => 3,
         'device_synced_at' => now()->subDay(),
     ]);
 
     $newEmployee = Employee::factory()->synced()->create([
-        'device_uid' => 10,
+        'device_user_id' => 10,
         'device_synced_at' => null,
     ]);
 
@@ -171,7 +172,7 @@ test('removes deactivated and syncs new employees in one pass', function () {
 
 test('pauses listener for realtime devices during sync', function () {
     $employee = Employee::factory()->synced()->create([
-        'device_uid' => 1,
+        'device_user_id' => 1,
         'device_synced_at' => null,
     ]);
 
@@ -180,10 +181,10 @@ test('pauses listener for realtime devices during sync', function () {
     $coordinatorMock->shouldReceive('withPausedListener')
         ->once()
         ->with(
-            Mockery::on(fn($d) => $d->id === $this->device->id),
+            Mockery::on(fn ($d) => $d->id === $this->device->id),
             Mockery::type('callable'),
         )
-        ->andReturnUsing(fn($device, $callback) => $callback());
+        ->andReturnUsing(fn ($device, $callback) => $callback());
 
     app()->instance(ListenerCoordinator::class, $coordinatorMock);
 

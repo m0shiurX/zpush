@@ -14,7 +14,8 @@ class Employee extends Model
 
     protected $fillable = [
         'cloud_id',
-        'device_uid',
+        'device_user_id',
+        'device_slot_uid',
         'name',
         'employee_code',
         'card_number',
@@ -26,6 +27,17 @@ class Employee extends Model
     ];
 
     /**
+     * The device slot this employee occupies.
+     *
+     * Falls back to the operator-facing id for employees enrolled before slots
+     * were tracked separately, where the two were written identically.
+     */
+    public function deviceSlot(): int
+    {
+        return $this->device_slot_uid ?? (int) $this->device_user_id;
+    }
+
+    /**
      * Get the attributes that should be cast.
      *
      * @return array<string, string>
@@ -34,7 +46,8 @@ class Employee extends Model
     {
         return [
             'cloud_id' => 'integer',
-            'device_uid' => 'integer',
+            'device_user_id' => 'string',
+            'device_slot_uid' => 'integer',
             'is_active' => 'boolean',
             'cloud_synced_at' => 'datetime',
             'device_synced_at' => 'datetime',

@@ -52,16 +52,16 @@ test('recordSyncFailure increments attempts', function () {
 });
 
 test('toSyncPayload returns correct structure', function () {
-    $employee = Employee::factory()->create(['device_uid' => 100]);
+    $employee = Employee::factory()->create(['device_user_id' => 100]);
     $log = AttendanceLog::factory()->checkIn()->create([
         'employee_id' => $employee->id,
-        'device_uid' => 100,
+        'device_user_id' => 100,
     ]);
 
     $payload = $log->toSyncPayload();
 
     expect($payload)->toBeArray()
-        ->toHaveKeys(['employee_code', 'device_uid', 'timestamp', 'punch_type', 'device_name']);
+        ->toHaveKeys(['employee_code', 'device_user_id', 'timestamp', 'punch_type', 'device_name']);
 });
 
 test('unsynced scope filters unsynced logs', function () {
@@ -90,4 +90,12 @@ test('belongs to device config', function () {
     $log = AttendanceLog::factory()->create(['device_id' => $device->id]);
 
     expect($log->device->id)->toBe($device->id);
+});
+
+test('unsynced scope withholds quarantined records from cloud sync', function () {
+    AttendanceLog::factory()->create(['cloud_synced' => false, 'is_quarantined' => false]);
+    AttendanceLog::factory()->create(['cloud_synced' => false, 'is_quarantined' => true]);
+
+    expect(AttendanceLog::unsynced()->count())->toBe(1)
+        ->and(AttendanceLog::quarantined()->count())->toBe(1);
 });

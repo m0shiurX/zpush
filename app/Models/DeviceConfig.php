@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use Carbon\CarbonImmutable;
+use Carbon\CarbonInterface;
 use Database\Factories\DeviceConfigFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -22,6 +24,8 @@ class DeviceConfig extends Model
         'is_active',
         'last_connected_at',
         'last_poll_at',
+        'last_synced_ordinal',
+        'last_record_count',
         'connection_failures',
     ];
 
@@ -38,8 +42,27 @@ class DeviceConfig extends Model
             'is_active' => 'boolean',
             'last_connected_at' => 'datetime',
             'last_poll_at' => 'datetime',
+            'last_synced_ordinal' => 'integer',
+            'last_record_count' => 'integer',
             'connection_failures' => 'integer',
         ];
+    }
+
+    /**
+     * The earliest moment a punch from this device could plausibly describe.
+     *
+     * ZKTeco counts time from 2000-01-01, and a device that loses power
+     * restarts its clock there. Punches made before someone notices land in
+     * that first year, so treat the whole of it as clock-reset wreckage — real
+     * deployments do not have attendance from 2000.
+     *
+     * Deliberately not the device's created_at: a device registered today may
+     * still hold a legitimate backlog, and quarantining all of it would be
+     * worse than useless.
+     */
+    public function trustedEpoch(): CarbonInterface
+    {
+        return CarbonImmutable::create(2001, 1, 1, 0, 0, 0);
     }
 
     /**

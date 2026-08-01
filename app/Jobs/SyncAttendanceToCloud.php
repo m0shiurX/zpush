@@ -148,6 +148,7 @@ class SyncAttendanceToCloud implements ShouldBeUnique, ShouldQueue
             ->whereIn('employee_id', $employeeIds)
             ->whereDate('timestamp', $date)
             ->where('cloud_synced', false)
+            ->where('is_quarantined', false)
             ->update([
                 'cloud_synced' => true,
                 'cloud_synced_at' => now(),

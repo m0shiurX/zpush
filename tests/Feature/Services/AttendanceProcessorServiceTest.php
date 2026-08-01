@@ -18,14 +18,14 @@ test('pairs check-in and check-out for a single employee', function () {
     AttendanceLog::factory()->checkIn()->create([
         'employee_id' => $employee->id,
         'device_id' => $this->device->id,
-        'device_uid' => $employee->device_uid,
+        'device_user_id' => $employee->device_user_id,
         'timestamp' => $this->date->copy()->setTime(8, 3),
     ]);
 
     AttendanceLog::factory()->checkOut()->create([
         'employee_id' => $employee->id,
         'device_id' => $this->device->id,
-        'device_uid' => $employee->device_uid,
+        'device_user_id' => $employee->device_user_id,
         'timestamp' => $this->date->copy()->setTime(17, 32),
     ]);
 
@@ -46,28 +46,28 @@ test('uses first check-in and last check-out when multiple punches exist', funct
     AttendanceLog::factory()->checkIn()->create([
         'employee_id' => $employee->id,
         'device_id' => $this->device->id,
-        'device_uid' => $employee->device_uid,
+        'device_user_id' => $employee->device_user_id,
         'timestamp' => $this->date->copy()->setTime(8, 0),
     ]);
 
     AttendanceLog::factory()->checkOut()->create([
         'employee_id' => $employee->id,
         'device_id' => $this->device->id,
-        'device_uid' => $employee->device_uid,
+        'device_user_id' => $employee->device_user_id,
         'timestamp' => $this->date->copy()->setTime(12, 0),
     ]);
 
     AttendanceLog::factory()->checkIn()->create([
         'employee_id' => $employee->id,
         'device_id' => $this->device->id,
-        'device_uid' => $employee->device_uid,
+        'device_user_id' => $employee->device_user_id,
         'timestamp' => $this->date->copy()->setTime(13, 0),
     ]);
 
     AttendanceLog::factory()->checkOut()->create([
         'employee_id' => $employee->id,
         'device_id' => $this->device->id,
-        'device_uid' => $employee->device_uid,
+        'device_user_id' => $employee->device_user_id,
         'timestamp' => $this->date->copy()->setTime(18, 0),
     ]);
 
@@ -84,7 +84,7 @@ test('returns null check-out when employee has not checked out yet', function ()
     AttendanceLog::factory()->checkIn()->create([
         'employee_id' => $employee->id,
         'device_id' => $this->device->id,
-        'device_uid' => $employee->device_uid,
+        'device_user_id' => $employee->device_user_id,
         'timestamp' => $this->date->copy()->setTime(8, 15),
     ]);
 
@@ -103,14 +103,14 @@ test('processes multiple employees on the same date', function () {
         AttendanceLog::factory()->checkIn()->create([
             'employee_id' => $employee->id,
             'device_id' => $this->device->id,
-            'device_uid' => $employee->device_uid,
+            'device_user_id' => $employee->device_user_id,
             'timestamp' => $this->date->copy()->setTime(8, 0),
         ]);
 
         AttendanceLog::factory()->checkOut()->create([
             'employee_id' => $employee->id,
             'device_id' => $this->device->id,
-            'device_uid' => $employee->device_uid,
+            'device_user_id' => $employee->device_user_id,
             'timestamp' => $this->date->copy()->setTime(17, 0),
         ]);
     }
@@ -131,7 +131,7 @@ test('skips inactive employees', function () {
         AttendanceLog::factory()->checkIn()->create([
             'employee_id' => $employee->id,
             'device_id' => $this->device->id,
-            'device_uid' => $employee->device_uid,
+            'device_user_id' => $employee->device_user_id,
             'timestamp' => $this->date->copy()->setTime(8, 0),
         ]);
     }
@@ -152,7 +152,7 @@ test('skips attendance logs without an employee', function () {
     AttendanceLog::factory()->checkIn()->create([
         'employee_id' => null,
         'device_id' => $this->device->id,
-        'device_uid' => 999,
+        'device_user_id' => 999,
         'timestamp' => $this->date->copy()->setTime(8, 0),
     ]);
 
@@ -169,13 +169,13 @@ test('getCompletedPairs returns only records with check-out', function () {
     AttendanceLog::factory()->checkIn()->create([
         'employee_id' => $emp1->id,
         'device_id' => $this->device->id,
-        'device_uid' => $emp1->device_uid,
+        'device_user_id' => $emp1->device_user_id,
         'timestamp' => $this->date->copy()->setTime(8, 0),
     ]);
     AttendanceLog::factory()->checkOut()->create([
         'employee_id' => $emp1->id,
         'device_id' => $this->device->id,
-        'device_uid' => $emp1->device_uid,
+        'device_user_id' => $emp1->device_user_id,
         'timestamp' => $this->date->copy()->setTime(17, 0),
     ]);
 
@@ -183,7 +183,7 @@ test('getCompletedPairs returns only records with check-out', function () {
     AttendanceLog::factory()->checkIn()->create([
         'employee_id' => $emp2->id,
         'device_id' => $this->device->id,
-        'device_uid' => $emp2->device_uid,
+        'device_user_id' => $emp2->device_user_id,
         'timestamp' => $this->date->copy()->setTime(8, 0),
     ]);
 
@@ -201,7 +201,7 @@ test('processUnsynced processes all dates with unsynced records', function () {
     AttendanceLog::factory()->checkIn()->synced()->create([
         'employee_id' => $employee->id,
         'device_id' => $this->device->id,
-        'device_uid' => $employee->device_uid,
+        'device_user_id' => $employee->device_user_id,
         'timestamp' => Carbon::parse('2026-03-01')->setTime(8, 0),
     ]);
 
@@ -209,14 +209,14 @@ test('processUnsynced processes all dates with unsynced records', function () {
     AttendanceLog::factory()->checkIn()->create([
         'employee_id' => $employee->id,
         'device_id' => $this->device->id,
-        'device_uid' => $employee->device_uid,
+        'device_user_id' => $employee->device_user_id,
         'timestamp' => Carbon::parse('2026-03-02')->setTime(8, 0),
     ]);
 
     AttendanceLog::factory()->checkOut()->create([
         'employee_id' => $employee->id,
         'device_id' => $this->device->id,
-        'device_uid' => $employee->device_uid,
+        'device_user_id' => $employee->device_user_id,
         'timestamp' => Carbon::parse('2026-03-02')->setTime(17, 0),
     ]);
 
@@ -233,13 +233,13 @@ test('falls back to first punch if no explicit check-in', function () {
     AttendanceLog::factory()->checkOut()->create([
         'employee_id' => $employee->id,
         'device_id' => $this->device->id,
-        'device_uid' => $employee->device_uid,
+        'device_user_id' => $employee->device_user_id,
         'timestamp' => $this->date->copy()->setTime(8, 0),
     ]);
     AttendanceLog::factory()->checkOut()->create([
         'employee_id' => $employee->id,
         'device_id' => $this->device->id,
-        'device_uid' => $employee->device_uid,
+        'device_user_id' => $employee->device_user_id,
         'timestamp' => $this->date->copy()->setTime(17, 0),
     ]);
 

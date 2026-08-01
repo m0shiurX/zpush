@@ -71,10 +71,10 @@ class SyncEmployeesToDevice implements ShouldBeUnique, ShouldQueue
             })
             ->get();
 
-        // Inactive employees that still have a device_uid (need removal from device)
+        // Inactive employees that still have a device_user_id (need removal from device)
         $employeesToRemove = Employee::query()
             ->where('is_active', false)
-            ->whereNotNull('device_uid')
+            ->whereNotNull('device_user_id')
             ->whereNotNull('device_synced_at')
             ->get();
 
@@ -111,7 +111,7 @@ class SyncEmployeesToDevice implements ShouldBeUnique, ShouldQueue
             // Phase 1: Remove deactivated employees from the device
             foreach ($employeesToRemove as $employee) {
                 try {
-                    $service->removeUserFromDevice($device, $employee->device_uid);
+                    $service->removeUserFromDevice($device, $employee->deviceSlot());
                     $employee->update(['device_synced_at' => null]);
                     $removed++;
                 } catch (\Throwable $e) {
@@ -125,8 +125,12 @@ class SyncEmployeesToDevice implements ShouldBeUnique, ShouldQueue
             // Phase 2: Add or update active employees on the device
             foreach ($employeesToSync as $employee) {
                 try {
-                    if (! $employee->device_uid) {
-                        $employee->device_uid = $this->allocateDeviceUid();
+                    if (! $employee->device_user_id) {
+                        $next = $this->allocateDeviceIdentity();
+                        // For employees this app enrols, the operator-facing id
+                        // and the device slot are deliberately kept identical.
+                        $employee->device_user_id = (string) $next;
+                        $employee->device_slot_uid = $next;
                         $employee->save();
                     }
 
@@ -155,14 +159,15 @@ class SyncEmployeesToDevice implements ShouldBeUnique, ShouldQueue
     }
 
     /**
-     * Allocate the next available device UID.
+     * Allocate the next free device slot.
      *
-     * ZKTeco K40 supports UIDs 1–65535.
+     * ZKTeco K40 supports slots 1–65535.
      */
-    private function allocateDeviceUid(): int
+    private function allocateDeviceIdentity(): int
     {
-        $maxUid = Employee::query()->max('device_uid') ?? 0;
+        $maxSlot = (int) Employee::query()->max('device_slot_uid');
+        $maxUserId = (int) Employee::query()->max('device_user_id');
 
-        return $maxUid + 1;
+        return max($maxSlot, $maxUserId) + 1;
     }
 }

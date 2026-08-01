@@ -10,6 +10,15 @@
 
 ---
 
+> **Domain glossary:** [CONTEXT.md](CONTEXT.md) — device user id vs slot uid, log
+> ordinal, high-water mark, quarantine, buffered read.
+>
+> **Decisions:** [adr/](adr/) — notably
+> [ADR 0001](adr/0001-php-buffered-read.md), which records why bulk reads failed
+> and why the Python/Rust rewrite was deferred.
+
+---
+
 ## 1. Project Overview
 
 A **web application** (later wrappable in NativePHP) that acts as a **middleware bridge** between **ZKTeco K40** biometric attendance devices (LAN) and the **lavloss cloud ERP** (remote API). Each zpush instance is deployed at a physical **branch** (factory, office, branch) on the same LAN as the devices, polls for attendance data, manages employee records, and synchronizes with the cloud.

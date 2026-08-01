@@ -44,7 +44,7 @@ class AttendanceController extends Controller
 
         $logs = $query->paginate(25)->through(fn (AttendanceLog $log) => [
             'id' => $log->id,
-            'employee_name' => $log->employee?->name ?? "UID {$log->device_uid}",
+            'employee_name' => $log->employee?->name ?? "UID {$log->device_user_id}",
             'employee_code' => $log->employee?->employee_code,
             'device_name' => $log->device?->name ?? 'Unknown',
             'timestamp' => $log->timestamp->toISOString(),
@@ -108,7 +108,7 @@ class AttendanceController extends Controller
             $query->chunk(500, function ($logs) use ($handle): void {
                 foreach ($logs as $log) {
                     fputcsv($handle, [
-                        $log->employee?->name ?? "UID {$log->device_uid}",
+                        $log->employee?->name ?? "UID {$log->device_user_id}",
                         $log->employee?->employee_code ?? '',
                         $log->device?->name ?? 'Unknown',
                         $log->punch_type->label(),

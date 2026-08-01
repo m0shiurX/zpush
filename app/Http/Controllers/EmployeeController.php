@@ -33,7 +33,7 @@ class EmployeeController extends Controller
 
         $employees = $query->paginate(25)->through(fn (Employee $employee) => [
             'id' => $employee->id,
-            'device_uid' => $employee->device_uid,
+            'device_user_id' => $employee->device_user_id,
             'name' => $employee->name,
             'employee_code' => $employee->employee_code,
             'department' => $employee->department,

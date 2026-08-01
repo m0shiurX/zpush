@@ -25,7 +25,7 @@ class AttendanceLogFactory extends Factory
         return [
             'employee_id' => Employee::factory(),
             'device_id' => DeviceConfig::factory(),
-            'device_uid' => fn (array $attributes) => Employee::find($attributes['employee_id'])?->device_uid ?? fake()->numberBetween(1, 9999),
+            'device_user_id' => fn (array $attributes) => Employee::find($attributes['employee_id'])?->device_user_id ?? (string) fake()->numberBetween(1, 9999),
             'timestamp' => fake()->dateTimeBetween('-7 days', 'now'),
             'punch_type' => fake()->randomElement(PunchType::cases()),
             'cloud_synced' => false,

@@ -24,7 +24,7 @@ test('uploads unsynced attendance to cloud and marks punches synced', function (
     AttendanceLog::factory()->checkIn()->create([
         'employee_id' => $employee->id,
         'device_id' => $this->device->id,
-        'device_uid' => $employee->device_uid,
+        'device_user_id' => $employee->device_user_id,
         'timestamp' => '2026-03-04 08:00:00',
         'cloud_synced' => false,
     ]);
@@ -32,7 +32,7 @@ test('uploads unsynced attendance to cloud and marks punches synced', function (
     AttendanceLog::factory()->checkOut()->create([
         'employee_id' => $employee->id,
         'device_id' => $this->device->id,
-        'device_uid' => $employee->device_uid,
+        'device_user_id' => $employee->device_user_id,
         'timestamp' => '2026-03-04 17:00:00',
         'cloud_synced' => false,
     ]);
@@ -85,7 +85,7 @@ test('handles partial rejection from cloud', function () {
         AttendanceLog::factory()->checkIn()->create([
             'employee_id' => $emp->id,
             'device_id' => $this->device->id,
-            'device_uid' => $emp->device_uid,
+            'device_user_id' => $emp->device_user_id,
             'timestamp' => '2026-03-04 08:00:00',
             'cloud_synced' => false,
         ]);
@@ -118,7 +118,7 @@ test('processes all unsynced dates when no specific date provided', function () 
     AttendanceLog::factory()->checkIn()->create([
         'employee_id' => $employee->id,
         'device_id' => $this->device->id,
-        'device_uid' => $employee->device_uid,
+        'device_user_id' => $employee->device_user_id,
         'timestamp' => '2026-03-03 08:00:00',
         'cloud_synced' => false,
     ]);
@@ -127,7 +127,7 @@ test('processes all unsynced dates when no specific date provided', function () 
     AttendanceLog::factory()->checkIn()->create([
         'employee_id' => $employee->id,
         'device_id' => $this->device->id,
-        'device_uid' => $employee->device_uid,
+        'device_user_id' => $employee->device_user_id,
         'timestamp' => '2026-03-04 08:00:00',
         'cloud_synced' => false,
     ]);

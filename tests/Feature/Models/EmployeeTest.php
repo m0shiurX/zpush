@@ -7,7 +7,7 @@ test('it can be created via factory', function () {
     $employee = Employee::factory()->create();
 
     expect($employee)->toBeInstanceOf(Employee::class)
-        ->and($employee->device_uid)->toBeInt()
+        ->and($employee->device_user_id)->toBeString()
         ->and($employee->name)->not->toBeEmpty()
         ->and($employee->is_active)->toBeTrue();
 });
@@ -15,7 +15,7 @@ test('it can be created via factory', function () {
 test('sync_hash is auto-computed on create', function () {
     $employee = Employee::factory()->create([
         'name' => 'John Doe',
-        'device_uid' => 42,
+        'device_user_id' => '42',
         'employee_code' => 'EMP-0042',
         'department' => 'IT',
     ]);

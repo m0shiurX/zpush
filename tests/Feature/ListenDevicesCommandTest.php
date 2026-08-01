@@ -135,7 +135,7 @@ test('listen command stops when device is deactivated', function () {
 
 test('handleRealtimeEvent creates attendance log for known employee', function () {
     $device = DeviceConfig::factory()->connected()->create();
-    $employee = Employee::factory()->create(['device_uid' => 42]);
+    $employee = Employee::factory()->create(['device_user_id' => '42']);
 
     $service = new DeviceService;
     $result = $service->handleRealtimeEvent([
@@ -150,7 +150,7 @@ test('handleRealtimeEvent creates attendance log for known employee', function (
 
     $log = AttendanceLog::first();
     expect($log->employee_id)->toBe($employee->id)
-        ->and($log->device_uid)->toBe(42)
+        ->and($log->device_user_id)->toBe('42')
         ->and($log->device_id)->toBe($device->id);
 });
 
@@ -171,12 +171,12 @@ test('handleRealtimeEvent skips unknown uid', function () {
 
 test('handleRealtimeEvent skips duplicate timestamps', function () {
     $device = DeviceConfig::factory()->connected()->create();
-    $employee = Employee::factory()->create(['device_uid' => 7]);
+    $employee = Employee::factory()->create(['device_user_id' => '7']);
 
     AttendanceLog::factory()->create([
         'employee_id' => $employee->id,
         'device_id' => $device->id,
-        'device_uid' => 7,
+        'device_user_id' => '7',
         'timestamp' => '2026-03-27 10:30:00',
     ]);
 

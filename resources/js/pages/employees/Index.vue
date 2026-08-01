@@ -17,7 +17,7 @@ interface PaginatedData<T> {
 
 interface EmployeeEntry {
     id: number;
-    device_uid: number;
+    device_user_id: string;
     name: string;
     employee_code: string | null;
     department: string | null;
@@ -138,7 +138,7 @@ function goToPage(url: string | null) {
                                     :key="emp.id"
                                     class="border-b last:border-0"
                                 >
-                                    <td class="py-2.5 pr-4 text-muted-foreground">{{ emp.device_uid }}</td>
+                                    <td class="py-2.5 pr-4 text-muted-foreground">{{ emp.device_user_id }}</td>
                                     <td class="py-2.5 pr-4 font-medium">{{ emp.name }}</td>
                                     <td class="py-2.5 pr-4 text-muted-foreground">{{ emp.employee_code ?? '—' }}</td>
                                     <td class="py-2.5 pr-4 text-muted-foreground">{{ emp.department ?? '—' }}</td>
